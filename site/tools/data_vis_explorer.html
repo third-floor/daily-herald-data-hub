@@ -1,0 +1,1632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photograph Archive Explorer</title>
+<style>
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f7f6f3;--surface:#ffffff;--surface2:#f0ede8;--surface3:#e8e4dc;
+  --border:#d4cfc6;--border2:#c2bbb0;
+  --text:#1a1916;--text2:#5a5750;--text3:#9a9590;
+  --purple:#534AB7;--purple-l:#EEEDFE;--purple-b:#AFA9EC;
+  --teal:#0F6E56;--teal-l:#E1F5EE;--teal-b:#9FE1CB;
+  --amber:#854F0B;--amber-l:#FAEEDA;--amber-b:#FAC775;
+  --blue:#185FA5;--blue-l:#E6F1FB;--blue-b:#85B7EB;
+  --green:#27500A;--green-l:#EAF3DE;--green-b:#C0DD97;
+  --coral:#712B13;--coral-l:#FAECE7;--coral-b:#F0997B;
+  --gray2:#444441;--gray-l:#F1EFE8;--gray-b:#D3D1C7;
+  --radius:8px;--radius-lg:12px;
+  --mono:'SF Mono','Fira Code','Fira Mono','Roboto Mono',monospace;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh}
+
+/* Layout */
+.app{display:grid;grid-template-rows:auto 1fr;height:100vh;overflow:hidden}
+.header{padding:12px 20px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-shrink:0}
+.header-left{display:flex;align-items:center;gap:14px}
+.logo{font-size:13px;font-weight:600;letter-spacing:0.02em;color:var(--text)}
+.logo span{color:var(--text3);font-weight:400}
+.tabs{display:flex;gap:2px;background:var(--surface2);border-radius:var(--radius);padding:3px}
+.tab{padding:5px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;color:var(--text2);border:none;background:transparent;transition:all .15s}
+.tab.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+
+/* Search bar — debounced, with hint */
+.search-wrap{position:relative;flex:1;max-width:420px;display:flex;gap:6px;align-items:center}
+.search-input-wrap{position:relative;flex:1}
+.search-input-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none}
+#global-search{width:100%;padding:7px 10px 7px 32px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);font-size:13px;color:var(--text);outline:none}
+#global-search:focus{border-color:var(--purple-b);background:var(--surface)}
+#search-btn{padding:6px 12px;font-size:12px;font-weight:500;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text2);cursor:pointer;white-space:nowrap;flex-shrink:0}
+#search-btn:hover{background:var(--surface3)}
+#search-btn.searching{background:var(--purple-l);color:var(--purple);border-color:var(--purple-b)}
+.search-hint{position:absolute;top:calc(100% + 4px);left:0;font-size:10px;color:var(--text3);white-space:nowrap;pointer-events:none}
+
+.stats-bar{display:flex;gap:16px;font-size:11px;color:var(--text3)}
+.stat-item strong{color:var(--text2);font-weight:600}
+
+/* Panel layout */
+.panels{display:grid;height:100%;overflow:hidden}
+.panels.catalogue-layout{grid-template-columns:280px 1fr 340px}
+.panels.network-layout{grid-template-columns:260px 1fr 340px}
+
+/* Sidebar */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-head{padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.sidebar-head h2{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.filter-pills{display:flex;flex-wrap:wrap;gap:4px}
+.fpill{font-size:11px;padding:2px 8px;border-radius:12px;border:1px solid var(--border);color:var(--text2);cursor:pointer;background:transparent;transition:all .12s}
+.fpill:hover{border-color:var(--border2)}
+.fpill.on{background:var(--purple-l);border-color:var(--purple-b);color:var(--purple)}
+.record-list{flex:1;overflow-y:auto;padding:6px}
+.rec-item{display:grid;grid-template-columns:44px 1fr;gap:8px;padding:8px;border-radius:var(--radius);cursor:pointer;border:1px solid transparent;margin-bottom:2px;transition:all .12s}
+.rec-item:hover{background:var(--surface2)}
+.rec-item.active{background:var(--purple-l);border-color:var(--purple-b)}
+
+/* Thumbnail: shows placeholder until user clicks to load */
+.rec-thumb-wrap{width:44px;height:33px;position:relative;flex-shrink:0}
+.rec-thumb{width:44px;height:33px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);object-fit:cover;display:block}
+.rec-thumb-ph{width:44px;height:33px;border-radius:4px;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text3);cursor:pointer;border:1px solid var(--border)}
+.rec-thumb-ph:hover{background:var(--blue-l);border-color:var(--blue-b)}
+.img-load-btn{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--blue);cursor:pointer;padding:4px 8px;border:1px solid var(--blue-b);border-radius:var(--radius);background:var(--blue-l);margin-top:4px}
+.rec-id{font-size:9px;font-family:var(--mono);color:var(--text3);margin-bottom:2px}
+.rec-title{font-size:11px;color:var(--text);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rec-tags{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.rtag{font-size:9px;padding:1px 5px;border-radius:8px;font-weight:500}
+.rtag-date{background:var(--purple-l);color:var(--purple)}
+.rtag-place{background:var(--blue-l);color:var(--blue)}
+.rtag-photo{background:var(--green-l);color:var(--green)}
+.rtag-subj{background:var(--amber-l);color:var(--amber)}
+
+/* Main content area - catalogue */
+.main-content{overflow-y:auto;padding:20px;background:var(--bg)}
+.detail-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+.detail-header{padding:16px 20px;border-bottom:1px solid var(--border)}
+.detail-id{font-size:10px;font-family:var(--mono);color:var(--text3);margin-bottom:4px}
+.detail-title{font-size:16px;font-weight:600;color:var(--text);line-height:1.35;margin-bottom:8px}
+.detail-activity{font-size:13px;color:var(--text2);font-style:italic;line-height:1.45}
+.detail-img-wrap{padding:16px 20px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}
+.detail-img{max-width:160px;max-height:120px;border-radius:6px;border:1px solid var(--border);object-fit:contain;background:var(--surface3)}
+.detail-img-meta{flex:1;font-size:12px;color:var(--text2)}
+.detail-img-meta a{color:var(--blue);text-decoration:none}
+.detail-img-meta a:hover{text-decoration:underline}
+.detail-body{padding:16px 20px;display:flex;flex-direction:column;gap:16px}
+.section-lbl{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px}
+
+/* Multi-image strip in detail view */
+.detail-img-strip{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin;margin-top:6px}
+.detail-img-strip::-webkit-scrollbar{height:4px}
+.detail-img-strip::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.detail-img-thumb{flex-shrink:0;cursor:pointer;text-align:center}
+.detail-img-thumb img{height:44px;width:60px;object-fit:cover;border-radius:4px;border:2px solid var(--border);display:block}
+.detail-img-thumb img.active-thumb{border-color:var(--purple)}
+.detail-img-thumb-lbl{font-size:9px;color:var(--text3);margin-top:2px;text-align:center}
+
+/* Entity chips */
+.entity-chips{display:flex;flex-wrap:wrap;gap:5px}
+.echip{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 8px;border-radius:var(--radius);cursor:pointer;border:1px solid;transition:opacity .12s}
+.echip:hover{opacity:.8}
+.echip-ph{background:var(--green-l);color:var(--green);border-color:var(--green-b)}
+.echip-dep{background:var(--teal-l);color:var(--teal);border-color:var(--teal-b)}
+.echip-men{background:var(--amber-l);color:var(--amber);border-color:var(--amber-b)}
+.echip-pld{background:var(--blue-l);color:var(--blue);border-color:var(--blue-b)}
+.echip-plm{background:var(--blue-l);color:var(--blue);border-color:var(--blue-b);opacity:.8}
+.echip-sub{background:var(--purple-l);color:var(--purple);border-color:var(--purple-b)}
+.echip-rights{background:var(--coral-l);color:var(--coral);border-color:var(--coral-b)}
+
+/* Text elements */
+.te-list{display:flex;flex-direction:column;gap:8px}
+.te-item{border-left:3px solid var(--border);padding:6px 10px;border-radius:0 var(--radius) var(--radius) 0;background:var(--surface2)}
+.te-item.te-rubber{border-color:var(--purple-b)}
+.te-item.te-hand{border-color:var(--teal-b)}
+.te-item.te-typed{border-color:var(--amber-b)}
+.te-item.te-acc{border-color:var(--blue-b)}
+.te-item.te-other{border-color:var(--border2)}
+.te-type{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.te-rubber .te-type{color:var(--purple)}
+.te-hand .te-type{color:var(--teal)}
+.te-typed .te-type{color:var(--amber)}
+.te-acc .te-type{color:var(--blue)}
+.te-text{font-size:11px;font-family:var(--mono);color:var(--text);white-space:pre-wrap;line-height:1.4}
+.te-leg{display:inline-block;margin-top:4px;font-size:9px;padding:1px 5px;border-radius:8px}
+.leg-clear{background:var(--green-l);color:var(--green)}
+.leg-partial{background:var(--amber-l);color:var(--amber)}
+.leg-illegible{background:var(--coral-l);color:var(--coral)}
+
+/* Right panel */
+.right-panel{background:var(--surface);border-left:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
+.right-head{padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.conn-diagram{padding:14px}
+.conn-diagram svg{width:100%;height:auto}
+
+/* Entity info popup */
+.entity-popup{padding:14px;border-top:1px solid var(--border)}
+.ep-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px}
+.ep-type{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.ep-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--surface2);font-size:11px}
+.ep-row:last-child{border-bottom:none}
+.ep-row label{color:var(--text3)}
+.ep-row span{color:var(--text);font-weight:500;text-align:right;max-width:60%}
+.ep-rat{font-size:11px;color:var(--text2);line-height:1.45;padding:8px;background:var(--surface2);border-radius:var(--radius);margin-top:8px}
+.ep-rat-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:3px}
+.ep-photos{margin-top:10px}
+.ep-photos-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:5px}
+.ep-photo-list{display:flex;flex-direction:column;gap:3px;max-height:120px;overflow-y:auto}
+.ep-photo-item{font-size:10px;font-family:var(--mono);color:var(--blue);cursor:pointer;padding:2px 4px;border-radius:4px}
+.ep-photo-item:hover{background:var(--blue-l)}
+
+/* Confidence bar */
+.conf-bar-wrap{display:flex;align-items:center;gap:6px}
+.conf-bar{height:6px;border-radius:3px;background:var(--surface3);flex:1;overflow:hidden}
+.conf-fill{height:100%;border-radius:3px;background:var(--green-b)}
+.conf-val{font-size:10px;color:var(--text2);min-width:28px;text-align:right}
+
+/* Network tab */
+#network-canvas{flex:1;background:var(--bg);cursor:grab;position:relative;overflow:hidden}
+#network-canvas:active{cursor:grabbing}
+#network-canvas canvas{display:block}
+.net-sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.net-controls{padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.net-controls h2{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.type-toggles{display:flex;flex-direction:column;gap:5px}
+.type-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text2);padding:3px 0}
+.type-toggle input[type=checkbox]{width:13px;height:13px;cursor:pointer;accent-color:var(--purple)}
+.type-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.net-legend{padding:10px 14px;border-bottom:1px solid var(--border);font-size:11px}
+.leg-row{display:flex;align-items:center;gap:6px;padding:2px 0;color:var(--text2)}
+.leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.net-search-res{flex:1;overflow-y:auto;padding:6px}
+.nsr-item{padding:7px 10px;border-radius:var(--radius);cursor:pointer;border:1px solid transparent;margin-bottom:2px;transition:all .12s}
+.nsr-item:hover{background:var(--surface2)}
+.nsr-item.active{background:var(--purple-l);border-color:var(--purple-b)}
+.nsr-name{font-size:12px;font-weight:500;color:var(--text);margin-bottom:2px}
+.nsr-meta{font-size:10px;color:var(--text3)}
+.net-right{background:var(--surface);border-left:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
+
+/* Empty state */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:13px;gap:8px;text-align:center;padding:40px}
+.empty svg{opacity:.3}
+
+/* Tooltip */
+#tooltip{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px;font-size:11px;color:var(--text);pointer-events:none;z-index:1000;max-width:220px;box-shadow:0 4px 16px rgba(0,0,0,.12);display:none;line-height:1.4}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--border2)}
+
+/* Divider */
+.divider{height:1px;background:var(--border);margin:0 -20px}
+
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#1a1916;--surface:#222220;--surface2:#2a2927;--surface3:#323130;
+    --border:#3a3936;--border2:#4a4945;
+    --text:#f0ede8;--text2:#a0998f;--text3:#6a6560;
+    --purple:#7F77DD;--purple-l:#26215C;--purple-b:#534AB7;
+    --teal:#1D9E75;--teal-l:#04342C;--teal-b:#0F6E56;
+    --amber:#EF9F27;--amber-l:#412402;--amber-b:#854F0B;
+    --blue:#378ADD;--blue-l:#042C53;--blue-b:#185FA5;
+    --green:#639922;--green-l:#173404;--green-b:#27500A;
+    --coral:#D85A30;--coral-l:#4A1B0C;--coral-b:#712B13;
+    --gray-l:#2C2C2A;--gray-b:#444441;
+  }
+}
+
+/* ── Load screen ── */
+#load-screen{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;z-index:9999;transition:opacity .3s}
+#load-screen.hidden{opacity:0;pointer-events:none}
+.load-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:40px 48px;max-width:500px;width:90%;text-align:center;display:flex;flex-direction:column;align-items:center;gap:16px}
+.load-logo{font-size:15px;font-weight:600;color:var(--text);letter-spacing:.01em}
+.load-logo span{color:var(--text3);font-weight:400}
+.load-title{font-size:22px;font-weight:600;color:var(--text);line-height:1.3}
+.load-sub{font-size:13px;color:var(--text2);line-height:1.6;max-width:360px}
+.load-drop{width:100%;border:2px dashed var(--border2);border-radius:var(--radius-lg);padding:28px 20px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:all .15s;background:transparent}
+.load-drop:hover,.load-drop.drag-over{border-color:var(--purple-b);background:var(--purple-l)}
+.load-drop-icon{font-size:32px;line-height:1}
+.load-drop-label{font-size:13px;font-weight:500;color:var(--text)}
+.load-drop-sub{font-size:11px;color:var(--text3)}
+.load-btn{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;padding:8px 18px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer;transition:all .12s}
+.load-btn:hover{background:var(--surface3);border-color:var(--border2)}
+.load-error{font-size:12px;color:var(--coral);background:var(--coral-l);border:1px solid var(--coral-b);border-radius:var(--radius);padding:8px 12px;width:100%;text-align:left;display:none;white-space:pre-wrap;font-family:var(--mono)}
+.load-log{font-size:11px;color:var(--text3);background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;width:100%;text-align:left;display:none;font-family:var(--mono);max-height:120px;overflow-y:auto}
+.load-progress{width:100%;display:none;flex-direction:column;gap:8px}
+.load-progress-bar{width:100%;height:4px;background:var(--surface3);border-radius:2px;overflow:hidden}
+.load-progress-fill{height:100%;background:var(--purple);border-radius:2px;transition:width .3s}
+.load-progress-msg{font-size:12px;color:var(--text3);text-align:center}
+
+</style>
+<script src="../assets/hub-data.js"></script>
+</head>
+<body>
+
+<div id="tooltip"></div>
+
+<!-- ── LOAD SCREEN ── -->
+<div id="load-screen">
+  <div class="load-card">
+    <div class="load-logo">Archive <span>/ Photograph Explorer</span></div>
+    <div>
+      <div class="load-title">Load your dataset</div>
+      <div class="load-sub">
+        Export a <code style="font-size:11px;background:var(--surface2);padding:1px 5px;border-radius:4px">_explorer.json</code> file from the Colab script, then select it below.
+      </div>
+    </div>
+    <div class="load-drop" id="load-dropzone">
+      <div class="load-drop-icon">📂</div>
+      <div class="load-drop-label">Drop JSON file here</div>
+      <div class="load-drop-sub">or use the button below</div>
+    </div>
+    <button class="load-btn" onclick="document.getElementById('load-file-input').click()">
+      📁 Choose file…
+    </button>
+    <input type="file" id="load-file-input" accept=".json" style="display:none">
+    <div class="load-progress" id="load-progress">
+      <div class="load-progress-bar"><div class="load-progress-fill" id="load-progress-fill" style="width:0%"></div></div>
+      <div class="load-progress-msg" id="load-progress-msg">Loading…</div>
+    </div>
+    <div class="load-log" id="load-log"></div>
+    <div class="load-error" id="load-error"></div>
+    <div style="font-size:11px;color:var(--text3);line-height:1.5;max-width:360px;text-align:center">
+      Everything runs locally — no data leaves your computer.<br>
+      You can also drag a JSON onto the page at any time to swap datasets.
+    </div>
+  </div>
+</div>
+
+<!-- ── APP SHELL ── -->
+<div class="app">
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">Archive Explorer <span>/ Photograph backs</span></div>
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('catalogue')">Catalogue</button>
+        <button class="tab" onclick="switchTab('network')">Entity network</button>
+      </div>
+    </div>
+
+    <!-- Search: debounced input + explicit Search button.
+         On a 25 MB dataset, running on every keystroke freezes the browser.
+         Typing waits 400 ms after the last key before auto-running; pressing
+         Enter or the Search button runs immediately. -->
+    <div class="search-wrap">
+      <div class="search-input-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="global-search" type="search" placeholder="Search people, places, subjects, text…"
+          oninput="scheduleSearch(this.value)"
+          onkeydown="if(event.key==='Enter'){cancelScheduledSearch();runSearch();}">
+      </div>
+      <button id="search-btn" onclick="cancelScheduledSearch();runSearch()">Search</button>
+      <div class="search-hint" id="search-hint" style="display:none">Press Enter or Search to find</div>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-item"><strong id="stat-count">—</strong> photos</div>
+      <div class="stat-item"><strong id="stat-daterange">—</strong></div>
+      <div class="stat-item" style="font-size:10px;color:var(--text3);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span id="stat-source"></span></div>
+      <button onclick="reloadDataset()" title="Load a different dataset" style="font-size:11px;padding:3px 10px;border-radius:var(--radius);border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer">↺ Load file</button>
+    </div>
+  </header>
+
+  <!-- CATALOGUE TAB -->
+  <div id="tab-catalogue" class="panels catalogue-layout">
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <h2>Filter by subject</h2>
+        <div class="filter-pills" id="filter-pills"></div>
+      </div>
+      <div class="record-list" id="record-list"></div>
+    </aside>
+    <main class="main-content" id="main-content">
+      <div class="empty">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        Load a dataset to begin
+      </div>
+    </main>
+    <aside class="right-panel" id="right-panel">
+      <div class="right-head">Connections</div>
+      <div class="empty" id="conn-empty">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        Select a photo to see entity connections
+      </div>
+      <div id="conn-content" style="display:none"></div>
+    </aside>
+  </div>
+
+  <!-- NETWORK TAB -->
+  <div id="tab-network" class="panels network-layout" style="display:none">
+    <aside class="net-sidebar">
+      <div class="net-controls">
+        <h2>Entity types</h2>
+        <div class="type-toggles">
+          <label class="type-toggle"><input type="checkbox" checked data-type="photographer" onchange="toggleType('photographer',this.checked)"><span class="type-dot" style="background:#639922"></span>Photographers</label>
+          <label class="type-toggle"><input type="checkbox" checked data-type="depicted" onchange="toggleType('depicted',this.checked)"><span class="type-dot" style="background:#1D9E75"></span>People depicted</label>
+          <label class="type-toggle"><input type="checkbox" checked data-type="mentioned" onchange="toggleType('mentioned',this.checked)"><span class="type-dot" style="background:#EF9F27"></span>People/orgs mentioned</label>
+          <label class="type-toggle"><input type="checkbox" checked data-type="place_dep" onchange="toggleType('place_dep',this.checked)"><span class="type-dot" style="background:#378ADD"></span>Places depicted</label>
+          <label class="type-toggle"><input type="checkbox" checked data-type="place_men" onchange="toggleType('place_men',this.checked)"><span class="type-dot" style="background:#85B7EB"></span>Places mentioned</label>
+          <label class="type-toggle"><input type="checkbox" checked data-type="subject" onchange="toggleType('subject',this.checked)"><span class="type-dot" style="background:#7F77DD"></span>Subject terms</label>
+        </div>
+      </div>
+      <div style="padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Layout forces</div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:3px"><span>Min. photos to show</span><span id="lbl-minphotos">2</span></div>
+          <input type="range" min="1" max="10" value="2" step="1" id="sl-minphotos" oninput="updateForce('minphotos',+this.value)" style="width:100%">
+          <div style="font-size:10px;color:var(--text3);margin-top:2px" id="hint-minphotos">— entities visible</div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:3px"><span>Repulsion</span><span id="lbl-repulsion">300</span></div>
+          <input type="range" min="50" max="4000" value="300" step="25" id="sl-repulsion" oninput="updateForce('repulsion',+this.value)" style="width:100%">
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:3px"><span>Link distance</span><span id="lbl-linkdist">60</span></div>
+          <input type="range" min="10" max="800" value="60" step="5" id="sl-linkdist" oninput="updateForce('linkdist',+this.value)" style="width:100%">
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:3px"><span>Type separation</span><span id="lbl-separation">0</span></div>
+          <input type="range" min="0" max="800" value="0" step="10" id="sl-separation" oninput="updateForce('separation',+this.value)" style="width:100%">
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:3px"><span>Label min. size</span><span id="lbl-minlabel">6px</span></div>
+          <input type="range" min="1" max="20" value="6" step="1" id="sl-minlabel" oninput="updateForce('minlabel',+this.value)" style="width:100%">
+        </div>
+        <div style="display:flex;gap:6px;margin-top:2px">
+          <button onclick="reheatSimulation()" style="flex:1;font-size:11px;padding:4px 0;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer">↺ Reheat</button>
+          <button onclick="fitView()" style="flex:1;font-size:11px;padding:4px 0;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer">⊡ Fit</button>
+          <button onclick="unpinAll()" style="flex:1;font-size:11px;padding:4px 0;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer">⊙ Unpin</button>
+        </div>
+        <div style="font-size:10px;color:var(--text3);line-height:1.4">Drag nodes to pin · Double-click to unpin · Shift+drag to pan</div>
+      </div>
+      <div style="padding:8px 14px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Search results</div>
+        <div style="font-size:10px;color:var(--text3)" id="net-search-hint">Use the search bar above to find entities</div>
+      </div>
+      <div class="net-search-res" id="net-search-res"></div>
+    </aside>
+    <div id="network-canvas"><canvas id="net-canvas"></canvas></div>
+    <aside class="net-right" id="net-right">
+      <div class="right-head">Entity detail</div>
+      <div class="empty" id="net-entity-empty">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        Click a node to see details, sources, and confidence
+      </div>
+      <div id="net-entity-detail" style="display:none;padding:14px;overflow-y:auto"></div>
+    </aside>
+  </div>
+</div>
+
+
+<script>
+
+// ═══════════════════════════════════════════════════════════════════
+// DATA STATE
+// ═══════════════════════════════════════════════════════════════════
+let records      = [];
+let recById      = {};
+let datasetMeta  = {};
+let topSubjects  = [];
+
+// ═══════════════════════════════════════════════════════════════════
+// SEARCH — debounced to avoid freezing on large datasets
+// ═══════════════════════════════════════════════════════════════════
+// The search bar fires scheduleSearch() on every keystroke.
+// A 400 ms timer is set; if another key arrives before it fires,
+// the timer resets. After 400 ms of silence, runSearch() executes.
+// Pressing Enter or the Search button skips the delay immediately.
+let _searchTimer = null;
+const SEARCH_DEBOUNCE_MS = 400;
+
+function scheduleSearch(val) {
+  // Show a subtle hint so the user knows search hasn't fired yet
+  const hint = document.getElementById('search-hint');
+  if(hint) hint.style.display = val ? 'block' : 'none';
+
+  cancelScheduledSearch();
+  _searchTimer = setTimeout(function() {
+    if(hint) hint.style.display = 'none';
+    runSearch();
+  }, SEARCH_DEBOUNCE_MS);
+}
+
+function cancelScheduledSearch() {
+  if(_searchTimer !== null) { clearTimeout(_searchTimer); _searchTimer = null; }
+}
+
+// The actual search execution — called by the debounce timer, Enter, or the button.
+function runSearch() {
+  const q = (document.getElementById('global-search').value || '').toLowerCase().trim();
+  searchQ = q;
+  applyFilters();
+  if(activeTab === 'network') updateNetSearch(q);
+}
+
+// Legacy alias kept so any inline oninput="onSearch()" calls still work
+function onSearch(q) { scheduleSearch(q); }
+
+// ═══════════════════════════════════════════════════════════════════
+// DEBUG LOG
+// ═══════════════════════════════════════════════════════════════════
+function dbg(msg) {
+  console.log('[Explorer]', msg);
+  const el = document.getElementById('load-log');
+  if(!el) return;
+  el.style.display = 'block';
+  el.textContent += msg + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FILE LOADING
+// ═══════════════════════════════════════════════════════════════════
+function showLoadError(msg) {
+  dbg('ERROR: ' + msg);
+  const el = document.getElementById('load-error');
+  el.textContent = '⚠ ' + msg;
+  el.style.display = 'block';
+  document.getElementById('load-progress').style.display = 'none';
+}
+
+function showProgress(msg, pct) {
+  dbg(msg);
+  document.getElementById('load-error').style.display = 'none';
+  const prog = document.getElementById('load-progress');
+  prog.style.display = 'flex';
+  document.getElementById('load-progress-msg').textContent = msg;
+  document.getElementById('load-progress-fill').style.width = (pct || 30) + '%';
+}
+
+function handleFileSelect(file) {
+  dbg('File selected: ' + file.name + ' (' + Math.round(file.size/1024) + ' KB)');
+  if(!file.name.endsWith('.json')) {
+    showLoadError('Please select a .json file exported by the Colab script.');
+    return;
+  }
+  showProgress('Reading ' + file.name + '…', 20);
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    showProgress('Parsing JSON…', 50);
+    let data;
+    try {
+      data = JSON.parse(e.target.result);
+      dbg('JSON parsed. Keys: ' + Object.keys(data).join(', '));
+    } catch(err) {
+      showLoadError('JSON parse failed: ' + err.message);
+      return;
+    }
+    showProgress('Building catalogue…', 75);
+    setTimeout(function() {
+      try { initApp(data); }
+      catch(err) { showLoadError('initApp failed: ' + err.message + '\n' + err.stack); }
+    }, 30);
+  };
+  reader.onerror = function() { showLoadError('FileReader error — could not read the file.'); };
+  reader.readAsText(file);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// initApp
+// ═══════════════════════════════════════════════════════════════════
+function initApp(data) {
+  dbg('initApp called. record_count=' + data.record_count);
+  if(!data.records || !Array.isArray(data.records)) {
+    showLoadError('Invalid JSON: missing "records" array. Did you use the Colab export script?');
+    return;
+  }
+  records = data.records;
+  dbg('records.length = ' + records.length);
+  datasetMeta = {
+    schemaVersion: data.schema_version || '?',
+    exportedAt:    data.exported_at    || '',
+    sourceFile:    data.source_file    || '',
+    recordCount:   data.record_count   || records.length,
+  };
+
+  dbg('Building indexes…');
+  rebuildIndexes();
+
+  const subjCounts = {};
+  records.forEach(r => (r.subjects||[]).forEach(s => {
+    if(s.term) subjCounts[s.term] = (subjCounts[s.term]||0)+1;
+  }));
+  topSubjects = Object.entries(subjCounts).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([t])=>t);
+  dbg('Top subjects: ' + topSubjects.slice(0,5).join(', '));
+
+  document.getElementById('stat-count').textContent = records.length;
+  document.getElementById('stat-daterange').textContent = getDateRange(records);
+  const srcShort = (datasetMeta.sourceFile || '').replace(/_explorer\.json$/, '').replace(/_/g,' ');
+  document.getElementById('stat-source').textContent = srcShort.slice(0,50);
+  if(srcShort) document.querySelector('.logo span').textContent = '/ ' + srcShort.slice(0,40);
+
+  selectedRec  = null;
+  activeFilter = null;
+  searchQ      = '';
+  filteredRecs = [];
+  netInit      = false;
+  netNodes     = []; netEdges = []; netNodeMap = {};
+  document.getElementById('global-search').value = '';
+  document.getElementById('main-content').innerHTML = `
+    <div class="empty">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+      Select a photograph to view details
+    </div>`;
+
+  dbg('Rendering…');
+  initFilterPills();
+  applyFilters();
+
+  dbg('Done — hiding load screen');
+  const ls = document.getElementById('load-screen');
+  ls.classList.add('hidden');
+  setTimeout(function() { ls.style.display = 'none'; }, 350);
+}
+
+function getDateRange(recs) {
+  const years = [];
+  recs.forEach(r => {
+    const m = (r.date || '').match(/\b(1[89]\d{2}|20[012]\d)\b/);
+    if(m) years.push(parseInt(m[1]));
+  });
+  if(!years.length) return '—';
+  const mn = Math.min(...years), mx = Math.max(...years);
+  return mn === mx ? String(mn) : mn + '–' + mx;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DATASET RELOAD
+// ═══════════════════════════════════════════════════════════════════
+function reloadDataset() {
+  stopSim();
+  const ls = document.getElementById('load-screen');
+  ls.style.display = 'flex';
+  ls.classList.remove('hidden');
+  document.getElementById('load-error').style.display = 'none';
+  document.getElementById('load-progress').style.display = 'none';
+  document.getElementById('load-log').style.display = 'none';
+  document.getElementById('load-log').textContent = '';
+  const inp = document.getElementById('load-file-input');
+  if(inp) inp.value = '';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FILE INPUT & DRAG-DROP WIRING
+// ═══════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function() {
+  dbg('DOM ready — wiring file input');
+  const input = document.getElementById('load-file-input');
+  const drop  = document.getElementById('load-dropzone');
+  if(!input) { dbg('ERROR: load-file-input not found!'); return; }
+  if(!drop)  { dbg('ERROR: load-dropzone not found!'); return; }
+
+  input.addEventListener('change', function(e) {
+    dbg('input change event fired, files: ' + (e.target.files ? e.target.files.length : 0));
+    const file = e.target.files && e.target.files[0];
+    if(file) handleFileSelect(file);
+    else dbg('No file in change event');
+    e.target.value = '';
+  });
+
+  drop.addEventListener('dragover', function(e) { e.preventDefault(); drop.classList.add('drag-over'); });
+  drop.addEventListener('dragleave', function() { drop.classList.remove('drag-over'); });
+  drop.addEventListener('drop', function(e) {
+    e.preventDefault(); drop.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    dbg('Drop on zone: ' + (file ? file.name : 'none'));
+    if(file) handleFileSelect(file);
+  });
+
+  document.addEventListener('dragover', function(e) { e.preventDefault(); });
+  document.addEventListener('drop', function(e) {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if(file && file.name.endsWith('.json')) {
+      dbg('Drop on page: ' + file.name);
+      reloadDataset();
+      setTimeout(function() { handleFileSelect(file); }, 60);
+    }
+  });
+
+  dbg('File input wired. Ready.');
+});
+
+// ─── Colour helpers ───────────────────────────────────────────────
+const TYPE_COLOR = {
+  photographer: '#639922',
+  depicted:     '#1D9E75',
+  mentioned:    '#EF9F27',
+  place_dep:    '#378ADD',
+  place_men:    '#85B7EB',
+  subject:      '#7F77DD',
+};
+const TYPE_LABEL = {
+  photographer: 'Photographer',
+  depicted:     'Person depicted',
+  mentioned:    'Person / org. mentioned',
+  place_dep:    'Place depicted',
+  place_men:    'Place mentioned',
+  subject:      'Subject term',
+};
+const TYPE_CHIP = {
+  photographer: 'echip-ph',
+  depicted:     'echip-dep',
+  mentioned:    'echip-men',
+  place_dep:    'echip-pld',
+  place_men:    'echip-plm',
+  subject:      'echip-sub',
+};
+const TE_CLASS = {
+  rubber_stamp: 'te-rubber',
+  handwritten_annotation: 'te-hand',
+  typed_label: 'te-typed',
+  printed_accession_number: 'te-acc',
+};
+const TE_LABEL = {
+  rubber_stamp: 'Rubber stamp',
+  handwritten_annotation: 'Handwritten annotation',
+  typed_label: 'Typed label',
+  printed_accession_number: 'Printed accession number',
+  other: 'Other',
+  sticker: 'Sticker',
+};
+
+// ─── Indexes ──────────────────────────────────────────────────────
+const photoEntityAll = {};
+
+function rebuildIndexes() {
+  Object.keys(recById).forEach(k => delete recById[k]);
+  records.forEach(r => recById[r.id] = r);
+  Object.keys(photoEntityAll).forEach(k => delete photoEntityAll[k]);
+  records.forEach(r => {
+    const all = [];
+    const addGroup = (items, type) => items.forEach(x => {
+      const name = x.name || x.term || '';
+      if(name) all.push({...x, _type: type});
+    });
+    addGroup(r.photographers || [], 'photographer');
+    addGroup(r.depicted || [], 'depicted');
+    addGroup(r.mentioned || [], 'mentioned');
+    addGroup(r.places_dep || [], 'place_dep');
+    addGroup(r.places_men || [], 'place_men');
+    addGroup((r.subjects || []).map(s => ({...s, name: s.term})), 'subject');
+    photoEntityAll[r.id] = all;
+  });
+}
+
+// ─── State ────────────────────────────────────────────────────────
+let activeTab = 'catalogue';
+let selectedRec = null;
+let activeFilter = null;
+let searchQ = '';
+let filteredRecs = [];
+
+// ─── Tab switching ────────────────────────────────────────────────
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab')[tab==='catalogue'?0:1].classList.add('active');
+  document.getElementById('tab-catalogue').style.display = tab==='catalogue' ? '' : 'none';
+  document.getElementById('tab-network').style.display  = tab==='network'   ? '' : 'none';
+  if(tab==='network') initNetwork();
+}
+
+// ─── Filter + search ─────────────────────────────────────────────
+function applyFilters() {
+  filteredRecs = records.filter(r => {
+    if(activeFilter && !r.subjects.some(s => s.term===activeFilter)) return false;
+    if(!searchQ) return true;
+    const haystack = [
+      r.id, r.title, r.date, r.activity,
+      ...r.te.map(t=>t.text),
+      ...(r.photographers||[]).map(p=>p.name),
+      ...(r.depicted||[]).map(p=>p.name),
+      ...(r.mentioned||[]).map(p=>p.name),
+      ...(r.places_dep||[]).map(p=>p.name),
+      ...(r.places_men||[]).map(p=>p.name),
+      ...(r.subjects||[]).map(s=>s.term),
+    ].join(' ').toLowerCase();
+    return haystack.includes(searchQ);
+  });
+  document.getElementById('stat-count').textContent = filteredRecs.length;
+  renderRecordList();
+}
+
+// ─── Filter pills ─────────────────────────────────────────────────
+function initFilterPills() {
+  const container = document.getElementById('filter-pills');
+  container.innerHTML = '';
+  const allPill = document.createElement('button');
+  allPill.className = 'fpill on';
+  allPill.textContent = 'All';
+  allPill.onclick = () => setFilter(null, allPill);
+  container.appendChild(allPill);
+  topSubjects.forEach(term => {
+    const p = document.createElement('button');
+    p.className = 'fpill';
+    p.textContent = term;
+    p.onclick = () => setFilter(term, p);
+    container.appendChild(p);
+  });
+}
+function setFilter(term, pill) {
+  activeFilter = term;
+  document.querySelectorAll('.fpill').forEach(p => p.classList.remove('on'));
+  pill.classList.add('on');
+  applyFilters();
+}
+
+// ─── Image helpers ────────────────────────────────────────────────
+// Returns an array of all image URLs for a record.
+// Prefers r.imgs (array set by the updated Python exporter that preserves all
+// semicolon-separated URLs from the xlsx image_links columns).
+// Falls back to the legacy r.img single-string field so older JSON files still work.
+function getRecordImages(r) {
+  if(r.imgs && Array.isArray(r.imgs) && r.imgs.length) return r.imgs;
+  if(r.img) return [r.img];
+  return [];
+}
+
+// Label for a URL at position i — matches the _1001_ / _1002_ filename pattern
+// used by the Science Museum Group CDN, falls back to positional labels.
+function imgLabel(url, i) {
+  const m = (url || '').match(/_(\d{4})_[^/]*$/);
+  if(m) {
+    const seq = parseInt(m[1], 10);
+    if(seq === 1001) return 'Front';
+    if(seq === 1002) return 'Back';
+    return 'View ' + (seq - 1000);
+  }
+  return i === 0 ? 'Front' : i === 1 ? 'Back' : 'View ' + (i + 1);
+}
+
+// ─── Record list ─────────────────────────────────────────────────
+// Thumbnails in the sidebar use a placeholder element.
+// Clicking the placeholder loads that single image on demand (lazy).
+// We never set src on any <img> at render time — every image request
+// is user-initiated, so the server isn't hit until the user asks.
+function renderRecordList() {
+  const list = document.getElementById('record-list');
+  list.innerHTML = '';
+  if(!filteredRecs.length) {
+    list.innerHTML = '<div class="empty" style="padding:30px 10px">No records match</div>';
+    return;
+  }
+  filteredRecs.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'rec-item' + (selectedRec===r.id?' active':'');
+    div.onclick = () => selectRecord(r.id);
+    const shortTitle = r.title.replace(/^A photographic print of /i,'');
+    const date = r.date ? r.date.split('-')[0] : '';
+    const place = (r.places_dep[0]?.name||r.places_men[0]?.name||'').split(',')[0];
+    const photographer = r.photographers[0]?.name||'';
+    const firstSubject = r.subjects[0]?.term||'';
+
+    // First image URL (if any) stored in data attribute — not loaded until clicked
+    const imgs = getRecordImages(r);
+    const firstImg = imgs[0] || '';
+    const thumbHtml = firstImg
+      ? `<div class="rec-thumb-ph" onclick="event.stopPropagation();loadThumb(this,'${firstImg}')" title="Click to load image">📷</div>`
+      : `<div class="rec-thumb-ph" style="cursor:default">📷</div>`;
+
+    div.innerHTML = `
+      ${thumbHtml}
+      <div>
+        <div class="rec-id">${r.id}</div>
+        <div class="rec-title">${esc(shortTitle)}</div>
+        <div class="rec-tags">
+          ${date?`<span class="rtag rtag-date">${date}</span>`:''}
+          ${place?`<span class="rtag rtag-place">${esc(place)}</span>`:''}
+          ${photographer?`<span class="rtag rtag-photo">${esc(photographer.split(',')[0])}</span>`:''}
+          ${firstSubject?`<span class="rtag rtag-subj">${esc(firstSubject)}</span>`:''}
+        </div>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+// ─── Detail view ─────────────────────────────────────────────────
+function selectRecord(id) {
+  selectedRec = id;
+  renderRecordList();
+  renderDetail(recById[id]);
+  renderConnections(recById[id]);
+}
+
+function renderDetail(r) {
+  const shortTitle = r.title.replace(/^A photographic print of /i,'');
+  const allEntities = photoEntityAll[r.id] || [];
+  const photographers = allEntities.filter(e=>e._type==='photographer');
+  const depicted      = allEntities.filter(e=>e._type==='depicted');
+  const mentioned     = allEntities.filter(e=>e._type==='mentioned');
+  const placeDep      = allEntities.filter(e=>e._type==='place_dep');
+  const placeMen      = allEntities.filter(e=>e._type==='place_men');
+  const subjects      = r.subjects || [];
+  const rights        = r.rights   || [];
+
+  // Build multi-image section.
+  // All images are fully lazy — the main viewer shows a placeholder with a
+  // "Load image" button; clicking it fetches only that one URL.
+  // Thumbnail strip items each have their own load-on-click button.
+  const imgs = getRecordImages(r);
+  let imgSectionHtml = '';
+  if(imgs.length > 0) {
+    // Main viewer: placeholder only — no src set until user clicks
+    const mainSrc = imgs[0];
+    const mainLabel = imgLabel(mainSrc, 0);
+    imgSectionHtml = `
+      <div class="detail-img-wrap">
+        <div style="flex-shrink:0">
+          <div id="detail-main-img-holder" style="width:160px">
+            <div id="detail-img-placeholder" style="width:160px;height:120px;border-radius:6px;border:1px solid var(--border);background:var(--surface3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer" onclick="loadDetailMainImg('${mainSrc}',this)">
+              <span style="font-size:24px">📷</span>
+              <span class="img-load-btn">Load ${mainLabel}</span>
+            </div>
+          </div>
+          ${imgs.length > 1 ? `
+          <div class="detail-img-strip" id="detail-img-strip">
+            ${imgs.map((url, i) => {
+              const lbl = imgLabel(url, i);
+              return `<div class="detail-img-thumb">
+                <div style="width:60px;height:44px;border-radius:4px;border:2px solid var(--border);background:var(--surface3);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px" onclick="loadDetailMainImg('${url}',null,'${lbl}')" title="Load ${lbl}">📷</div>
+                <div class="detail-img-thumb-lbl">${lbl}</div>
+              </div>`;
+            }).join('')}
+          </div>` : ''}
+        </div>
+        <div class="detail-img-meta">
+          ${r.date?`<div style="margin-bottom:4px"><strong>Date:</strong> ${esc(r.date)}</div>`:''}
+          ${r.date_info?.relationship_label?`<div style="margin-bottom:4px;font-size:11px;color:var(--text3)">${esc(r.date_info.relationship_label)}</div>`:''}
+          ${r.editorial?.story_or_series_title?`<div style="margin-bottom:4px"><strong>Story:</strong> ${esc(r.editorial.story_or_series_title)}</div>`:''}
+          ${r.editorial?.publication_name?`<div style="margin-bottom:4px"><strong>Publication:</strong> ${esc(r.editorial.publication_name)}</div>`:''}
+          ${imgs.length>1?`<div style="margin-bottom:4px;font-size:11px;color:var(--text3)">${imgs.length} images — click thumbnails below to switch</div>`:''}
+          <div style="margin-top:8px"><a href="${r.url}" target="_blank">View in Science Museum collection ↗</a></div>
+        </div>
+      </div>`;
+  }
+
+  let html = `<div class="detail-card">
+    <div class="detail-header">
+      <div class="detail-id">${esc(r.uid)} &middot; ${esc(r.id)}</div>
+      <div class="detail-title">${esc(shortTitle)}</div>
+      ${r.activity?`<div class="detail-activity">${esc(r.activity)}</div>`:''}
+    </div>
+    ${imgSectionHtml}
+    <div class="detail-body">`;
+
+  if(photographers.length||depicted.length||mentioned.length) {
+    html += `<div><div class="section-lbl">People & organisations</div><div class="entity-chips">`;
+    photographers.forEach(p => html += entityChip(p, 'photographer', 'Camera: '));
+    depicted.forEach(p => html += entityChip(p, 'depicted', 'Depicted: '));
+    mentioned.forEach(p => html += entityChip(p, 'mentioned', ''));
+    html += `</div></div>`;
+  }
+
+  if(placeDep.length||placeMen.length) {
+    html += `<div><div class="section-lbl">Places</div><div class="entity-chips">`;
+    placeDep.forEach(p => html += entityChip(p, 'place_dep', '📍 '));
+    placeMen.forEach(p => html += entityChip(p, 'place_men', '↗ '));
+    html += `</div></div>`;
+  }
+
+  if(subjects.length) {
+    html += `<div><div class="section-lbl">Subject terms</div><div class="entity-chips">`;
+    subjects.forEach(s => {
+      const data = JSON.stringify({name:s.term, _type:'subject', conf:s.conf, rat:s.rat, from:s.from, vocab:s.vocab});
+      html += `<span class="echip echip-sub" onclick='showEntityPopup(${esc(data)})'>${esc(s.term)}<small style="opacity:.6;margin-left:2px">${s.vocab||''}</small></span>`;
+    });
+    html += `</div></div>`;
+  }
+
+  if(rights.length) {
+    html += `<div><div class="section-lbl">Rights</div><div class="entity-chips">`;
+    rights.forEach(r2 => {
+      const data = JSON.stringify({name:r2.holder||'Unknown', _type:'rights', conf:r2.conf, rat:r2.rat, rtype:r2.type});
+      html += `<span class="echip echip-rights" onclick='showEntityPopup(${esc(data)})'>${esc(r2.holder||'Rights claim')}<small style="opacity:.6;margin-left:3px">${esc(r2.type||'')}</small></span>`;
+    });
+    html += `</div></div>`;
+  }
+
+  if(r.te && r.te.length) {
+    html += `<div><div class="section-lbl">Text elements on back (${r.te.length})</div><div class="te-list">`;
+    r.te.forEach(te => {
+      const cls = TE_CLASS[te.type] || 'te-other';
+      const lbl = TE_LABEL[te.type] || te.type;
+      const legCls = te.leg==='clear'?'leg-clear':te.leg==='partially_legible'?'leg-partial':'leg-illegible';
+      const legLbl = te.leg==='clear'?'Clear':te.leg==='partially_legible'?'Partial':'Illegible';
+      html += `<div class="te-item ${cls}">
+        <div class="te-type">${esc(lbl)}</div>
+        <div class="te-text">${esc(te.text)}</div>
+        <span class="te-leg ${legCls}">${legLbl}</span>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  html += `</div></div>`;
+  document.getElementById('main-content').innerHTML = html;
+}
+
+function entityChip(p, type, prefix) {
+  const name = p.name || p.name_as_transcribed || '';
+  if(!name) return '';
+  const data = JSON.stringify({name, _type:type, conf:p.conf||0, rat:p.rat||'', from:p.from||'', cert:p.cert||'', rel:p.rel||''});
+  return `<span class="echip ${TYPE_CHIP[type]||''}" onclick='showEntityPopup(${esc(data)})'>${prefix}${esc(name)}</span>`;
+}
+
+// ─── Lazy image loading (detail view) ────────────────────────────
+// Load the main detail image on demand when the user clicks the placeholder.
+// src is only set at that moment — no browser request is made before then.
+function loadDetailMainImg(src, placeholderEl, labelOverride) {
+  const holder = document.getElementById('detail-main-img-holder');
+  if(!holder) return;
+  const lbl = labelOverride || imgLabel(src, 0);
+  const img = document.createElement('img');
+  img.className = 'detail-img';
+  img.alt = lbl;
+  // No loading="eager" — browser default (auto) is fine since this is explicitly
+  // user-triggered; we just don't force eager pre-fetching.
+  img.onerror = function() {
+    holder.innerHTML = `<div style="width:160px;height:60px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text3);border:1px solid var(--border);border-radius:6px">Image unavailable</div>`;
+  };
+  holder.innerHTML = '';
+  holder.appendChild(img);
+  img.src = src;   // set src last — triggers the single network request
+}
+
+// Lazy load a sidebar thumbnail on click.
+// Replaces the placeholder div with the actual <img>, src set at click time.
+function loadThumb(el, src) {
+  if(!src) return;
+  const img = document.createElement('img');
+  img.className = 'rec-thumb';
+  img.alt = '';
+  img.onerror = function() { this.style.display = 'none'; };
+  img.src = src;   // set last — one request, on demand
+  el.parentNode.replaceChild(img, el);
+}
+
+// ─── Entity popup (right panel) ───────────────────────────────────
+function showEntityPopup(data) {
+  const d = typeof data === 'string' ? JSON.parse(data) : data;
+  const color = TYPE_COLOR[d._type] || '#888';
+  const typeLabel = TYPE_LABEL[d._type] || d._type;
+  const matchEntity = netInit ? netNodes.find(e => e.fullLabel === d.name && e.type === d._type) : null;
+  const sharedPhotos = matchEntity ? matchEntity.photos : [];
+  const fromRef = d.from || '';
+
+  let html = `<div class="entity-popup">
+    <div class="ep-name">${esc(d.name)}</div>
+    <div class="ep-type" style="color:${color}">${esc(typeLabel)}</div>
+    <div class="ep-row"><label>Confidence</label>
+      <span class="conf-bar-wrap"><div class="conf-bar"><div class="conf-fill" style="width:${Math.round((d.conf||0)*100)}%"></div></div><span class="conf-val">${Math.round((d.conf||0)*100)}%</span></span>
+    </div>
+    ${d.cert?`<div class="ep-row"><label>Identification</label><span>${esc(d.cert)}</span></div>`:''}
+    ${d.rel?`<div class="ep-row"><label>Relationship</label><span>${esc(d.rel)}</span></div>`:''}
+    ${d.rtype?`<div class="ep-row"><label>Rights type</label><span>${esc(d.rtype)}</span></div>`:''}
+    ${d.vocab?`<div class="ep-row"><label>Vocabulary</label><span>${esc(d.vocab)}</span></div>`:''}
+    ${fromRef?`<div class="ep-row"><label>Derived from</label><span style="font-family:var(--mono);font-size:10px">${esc(fromRef)}</span></div>`:''}
+    ${d.rat?`<div class="ep-rat"><div class="ep-rat-lbl">Rationale</div>${esc(d.rat)}</div>`:''}
+    ${sharedPhotos.length>1?`<div class="ep-photos">
+      <div class="ep-photos-lbl">Appears in ${sharedPhotos.length} photographs</div>
+      <div class="ep-photo-list">
+        ${sharedPhotos.map(pid=>`<div class="ep-photo-item" onclick="selectRecord('${pid}')">${pid}</div>`).join('')}
+      </div>
+    </div>`:`<div style="font-size:10px;color:var(--text3);margin-top:8px">Unique to this photograph</div>`}
+  </div>`;
+
+  document.getElementById('conn-empty').style.display='none';
+  document.getElementById('conn-content').style.display='block';
+  document.getElementById('conn-content').innerHTML = html;
+}
+
+// ─── Connections diagram ──────────────────────────────────────────
+function renderConnections(r) {
+  const allEnts = photoEntityAll[r.id] || [];
+  if(!allEnts.length) {
+    document.getElementById('conn-empty').style.display='flex';
+    document.getElementById('conn-content').style.display='none';
+    return;
+  }
+  document.getElementById('conn-empty').style.display='none';
+  document.getElementById('conn-content').style.display='block';
+
+  const W=290, cx=W/2;
+  const maxItems=Math.min(allEnts.length,10);
+  const items=allEnts.slice(0,maxItems);
+  const H=Math.max(200, 80+items.length*36+40);
+
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible" role="img" aria-label="Entity connections for ${esc(r.id)}">
+    <defs><marker id="a3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect x="${cx-52}" y="30" width="104" height="36" rx="7" fill="var(--purple-l)" stroke="var(--purple-b)" stroke-width="1"/>
+    <text x="${cx}" y="52" text-anchor="middle" font-size="9" font-family="var(--mono)" fill="var(--purple)">${esc(r.id.slice(-8))}</text>`;
+
+  items.forEach((ent, i) => {
+    const y = 100+i*34;
+    const col = TYPE_COLOR[ent._type]||'#888';
+    const name = ent.name||ent.term||'';
+    const label = name.length>28?name.slice(0,27)+'…':name;
+    const data = JSON.stringify({name, _type:ent._type, conf:ent.conf||0, rat:ent.rat||'', from:ent.from||''}).replace(/"/g,'&quot;');
+    svg+=`<line x1="${cx}" y1="66" x2="${cx}" y2="${y+8}" stroke="${col}" stroke-width="0.8" stroke-dasharray="3 2" marker-end="url(#a3)" opacity=".6"/>
+    <rect x="8" y="${y}" width="${W-16}" height="26" rx="5" fill="${col}18" stroke="${col}60" stroke-width="0.8" style="cursor:pointer" onclick='showEntityPopup("${data}")' />
+    <text x="16" y="${y+17}" font-size="9" font-weight="600" fill="${col}" font-family="system-ui,sans-serif">${esc(TYPE_LABEL[ent._type]||ent._type)}</text>
+    <text x="90" y="${y+17}" font-size="10" fill="var(--text)" font-family="system-ui,sans-serif">${esc(label)}</text>`;
+  });
+
+  if(allEnts.length>maxItems) {
+    svg+=`<text x="${cx}" y="${H-10}" text-anchor="middle" font-size="10" fill="var(--text3)" font-family="system-ui,sans-serif">+${allEnts.length-maxItems} more entities</text>`;
+  }
+  svg+=`</svg>`;
+  document.getElementById('conn-content').innerHTML=`<div class="conn-diagram">${svg}</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NETWORK TAB
+// ═══════════════════════════════════════════════════════════════════
+let netInit=false, netNodes=[], netEdges=[], netNodeMap={}, netCanvas, netCtx;
+let camX=0, camY=0, camScale=1;
+let panDragging=false, lastMX=0, lastMY=0;
+let dragNode=null, dragOffX=0, dragOffY=0;
+let hoveredNode=null, selectedNode=null;
+let activeTypes=new Set(['photographer','depicted','mentioned','place_dep','place_men','subject']);
+let simRunning=false, simAlpha=1, simFrame=null;
+
+let forceRepulsion=300, forceLinkDist=60, forceSeparation=0, labelMinR=6, minPhotos=2;
+
+const TYPE_ORDER=['photographer','depicted','mentioned','place_dep','place_men','subject'];
+function typeCentroidTarget(type) {
+  const idx=TYPE_ORDER.indexOf(type), n=TYPE_ORDER.length;
+  const angle=(idx/n)*Math.PI*2;
+  return {x:Math.cos(angle)*forceSeparation, y:Math.sin(angle)*forceSeparation};
+}
+
+function updateForce(param, val) {
+  if(param==='repulsion'){forceRepulsion=val;document.getElementById('lbl-repulsion').textContent=val;}
+  if(param==='linkdist'){forceLinkDist=val;document.getElementById('lbl-linkdist').textContent=val;}
+  if(param==='separation'){forceSeparation=val;document.getElementById('lbl-separation').textContent=val;}
+  if(param==='minlabel'){labelMinR=val;document.getElementById('lbl-minlabel').textContent=val+'px';}
+  if(param==='minphotos'){
+    minPhotos=val;
+    document.getElementById('lbl-minphotos').textContent=val===1?'all':val;
+    applyMinPhotosFilter();
+    return;
+  }
+  if(param!=='minlabel') heatSimulation(0.4);
+  else drawNetwork();
+}
+
+function applyMinPhotosFilter() {
+  netNodes.forEach(n => { n.visible = activeTypes.has(n.type) && n.count >= minPhotos; });
+  const vis = netNodes.filter(n=>n.visible).length;
+  const hint = document.getElementById('hint-minphotos');
+  if(hint) hint.textContent = `${vis} ${vis===1?'entity':'entities'} visible`;
+  heatSimulation(0.4);
+}
+
+function heatSimulation(alpha=1) {
+  simAlpha=Math.max(simAlpha, alpha);
+  if(!simRunning) startSim();
+}
+
+function scatterNodes() {
+  const n = netNodes.length;
+  const baseR = Math.sqrt(n) * 20;
+  netNodes.forEach((node, i) => {
+    if(node.pinned) return;
+    const angle = (i / n) * Math.PI * 8;
+    const r = baseR * (0.2 + (i / n) * 0.8);
+    node.x = Math.cos(angle) * r;
+    node.y = Math.sin(angle) * r;
+    node.vx = 0; node.vy = 0;
+  });
+}
+function reheatSimulation() { scatterNodes(); simAlpha=1; if(!simRunning) startSim(); }
+
+function startSim() { simRunning=true; simTick(); }
+
+function simTick() {
+  if(simAlpha<0.005){simRunning=false;drawNetwork();return;}
+  simAlpha*=0.97;
+  const cooling=simAlpha;
+  const visNodes=netNodes.filter(n=>n.visible);
+  const n=visNodes.length;
+  if(n===0){simRunning=false;return;}
+
+  const repStr = forceRepulsion / Math.max(1, n);
+  const maxDisp = forceLinkDist * 2 + 20;
+
+  for(let i=0;i<n;i++) {
+    const a=visNodes[i]; if(a.pinned) continue;
+    for(let j=i+1;j<n;j++) {
+      const b=visNodes[j];
+      const dx=a.x-b.x, dy=a.y-b.y;
+      const d2=Math.max(dx*dx+dy*dy, 1), d=Math.sqrt(d2);
+      const f=repStr/d2, fx=dx/d*f, fy=dy/d*f;
+      a.vx+=fx; a.vy+=fy;
+      if(!b.pinned){b.vx-=fx; b.vy-=fy;}
+    }
+  }
+
+  netEdges.forEach(e => {
+    const a=netNodeMap[e.a], b=netNodeMap[e.b];
+    if(!a||!b||!a.visible||!b.visible) return;
+    const dx=b.x-a.x, dy=b.y-a.y, d=Math.sqrt(dx*dx+dy*dy)||1;
+    const target=forceLinkDist*(1/Math.max(1,e.weight));
+    const f=Math.min((d-target)*0.04, maxDisp);
+    const fx=dx/d*f, fy=dy/d*f;
+    if(!a.pinned){a.vx+=fx; a.vy+=fy;}
+    if(!b.pinned){b.vx-=fx; b.vy-=fy;}
+  });
+
+  if(forceSeparation>0) {
+    visNodes.forEach(nd => {
+      if(nd.pinned) return;
+      const t=typeCentroidTarget(nd.type);
+      nd.vx+=(t.x-nd.x)*0.01; nd.vy+=(t.y-nd.y)*0.01;
+    });
+  }
+
+  const gravStr = 0.01 + Math.min(n/5000, 0.04);
+  visNodes.forEach(nd => {
+    if(nd.pinned) return;
+    nd.vx -= nd.x * gravStr; nd.vy -= nd.y * gravStr;
+  });
+
+  visNodes.forEach(nd => {
+    if(nd.pinned) return;
+    nd.vx *= 0.6; nd.vy *= 0.6;
+    const speed = Math.sqrt(nd.vx*nd.vx + nd.vy*nd.vy);
+    if(speed > maxDisp) { nd.vx = nd.vx/speed*maxDisp; nd.vy = nd.vy/speed*maxDisp; }
+    const dx = nd.vx * cooling, dy = nd.vy * cooling;
+    const disp = Math.sqrt(dx*dx + dy*dy);
+    if(disp > maxDisp) { nd.x += dx/disp*maxDisp; nd.y += dy/disp*maxDisp; }
+    else               { nd.x += dx;               nd.y += dy; }
+  });
+
+  drawNetwork();
+  simFrame=requestAnimationFrame(simTick);
+}
+
+function stopSim() { simRunning=false; if(simFrame) cancelAnimationFrame(simFrame); }
+function unpinAll() { netNodes.forEach(n=>{ n.pinned=false; }); heatSimulation(0.3); }
+
+function fitView() {
+  const vis=netNodes.filter(n=>n.visible); if(!vis.length) return;
+  const xs=vis.map(n=>n.x), ys=vis.map(n=>n.y);
+  const minX=Math.min(...xs)-30, maxX=Math.max(...xs)+30;
+  const minY=Math.min(...ys)-30, maxY=Math.max(...ys)+30;
+  const scaleX=netCanvas.width/(maxX-minX||1), scaleY=netCanvas.height/(maxY-minY||1);
+  camScale=Math.min(scaleX,scaleY,2);
+  camX=netCanvas.width/2-(minX+maxX)/2*camScale;
+  camY=netCanvas.height/2-(minY+maxY)/2*camScale;
+  drawNetwork();
+}
+
+function initNetwork() {
+  if(netInit) return;
+  netInit=true;
+  buildNetworkData();
+  startCanvas();
+  scatterNodes();
+  simAlpha=1;
+  startSim();
+}
+
+function buildNetworkData() {
+  const entMap = {};
+  function addEnt(type, rawName, conf, rat, src, extra, photoId, photoTitle) {
+    const name = (rawName||'').trim();
+    if(!name || name==='None' || name==='nan') return;
+    const key = type+'::'+name;
+    if(!entMap[key]) entMap[key] = {key, type, label:name, photos:[], instances:[], count:0};
+    entMap[key].photos.push(photoId);
+    entMap[key].instances.push({photo_id:photoId, photo_title:photoTitle, conf:conf||0, rat:rat||'', src:src||'', ...extra});
+    entMap[key].count = new Set(entMap[key].photos).size;
+  }
+
+  records.forEach(rec => {
+    const pid = rec.id;
+    const ptitle = rec.title.replace(/^A photographic print of /i,'').slice(0,60);
+    (rec.photographers||[]).forEach(p => addEnt('photographer', p.name, p.conf, p.rat, p.from, {}, pid, ptitle));
+    (rec.depicted||[]).forEach(p => addEnt('depicted', p.name, p.conf, p.rat, p.from, {cert:p.cert||''}, pid, ptitle));
+    (rec.mentioned||[]).forEach(p => addEnt('mentioned', p.name, p.conf, p.rat, p.from, {rel:p.rel||''}, pid, ptitle));
+    (rec.places_dep||[]).forEach(p => addEnt('place_dep', p.name, p.conf, p.rat, p.from, {ptype:p.type||''}, pid, ptitle));
+    (rec.places_men||[]).forEach(p => addEnt('place_men', p.name, p.conf, p.rat, p.from, {rel:p.rel||''}, pid, ptitle));
+    (rec.subjects||[]).forEach(s => addEnt('subject', s.term, s.conf, s.rat, s.from, {vocab:s.vocab||''}, pid, ptitle));
+  });
+
+  const allEntities = Object.values(entMap);
+  allEntities.forEach((e,i) => { e.eid = 'n'+i; });
+
+  netNodes = allEntities.map(e => ({
+    id: e.eid, key: e.key, label: e.label.split(',')[0].slice(0,30),
+    fullLabel: e.label, type: e.type, count: e.count,
+    instances: e.instances,
+    x: 0, y: 0, vx: 0, vy: 0,
+    visible: activeTypes.has(e.type) && e.count >= minPhotos,
+    pinned: false, highlighted: false,
+  }));
+  netNodeMap={};
+  netNodes.forEach(n => netNodeMap[n.id]=n);
+
+  const photoToNodes={};
+  netNodes.forEach(n => {
+    n.instances.forEach(inst => {
+      if(!photoToNodes[inst.photo_id]) photoToNodes[inst.photo_id]=[];
+      photoToNodes[inst.photo_id].push(n.id);
+    });
+  });
+
+  const edgeMap={};
+  Object.values(photoToNodes).forEach(nodeIds => {
+    for(let i=0;i<nodeIds.length;i++) {
+      for(let j=i+1;j<nodeIds.length;j++) {
+        const a=nodeIds[i]<nodeIds[j]?nodeIds[i]:nodeIds[j];
+        const b=nodeIds[i]<nodeIds[j]?nodeIds[j]:nodeIds[i];
+        const k=a+'_'+b;
+        if(!edgeMap[k]) edgeMap[k]={a,b,weight:0};
+        edgeMap[k].weight++;
+      }
+    }
+  });
+  netEdges=Object.values(edgeMap);
+
+  const visCount = netNodes.filter(n=>n.visible).length;
+  const hint = document.getElementById('hint-minphotos');
+  if(hint) hint.textContent = `${visCount} ${visCount===1?'entity':'entities'} visible`;
+}
+
+function toggleType(type, on) {
+  if(on) activeTypes.add(type); else activeTypes.delete(type);
+  if(netInit) {
+    netNodes.forEach(n => n.visible = activeTypes.has(n.type) && n.count >= minPhotos);
+    const vis = netNodes.filter(n=>n.visible).length;
+    const hint = document.getElementById('hint-minphotos');
+    if(hint) hint.textContent = `${vis} ${vis===1?'entity':'entities'} visible`;
+    heatSimulation(0.25);
+  }
+}
+
+function startCanvas() {
+  netCanvas=document.getElementById('net-canvas');
+  netCtx=netCanvas.getContext('2d');
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+  netCanvas.addEventListener('mousedown', onNetMouseDown);
+  netCanvas.addEventListener('mousemove', onNetMouseMove);
+  window.addEventListener('mouseup', onNetMouseUp);
+  netCanvas.addEventListener('wheel', onWheel, {passive:false});
+  netCanvas.addEventListener('click', onCanvasClick);
+  netCanvas.addEventListener('dblclick', onCanvasDblClick);
+  netCanvas.addEventListener('mouseleave', () => {
+    hoveredNode=null;
+    document.getElementById('tooltip').style.display='none';
+    drawNetwork();
+  });
+}
+
+function resizeCanvas() {
+  const c=document.getElementById('network-canvas');
+  netCanvas.width=c.clientWidth; netCanvas.height=c.clientHeight;
+  drawNetwork();
+}
+
+function worldToScreen(x,y){return{x:x*camScale+camX,y:y*camScale+camY}}
+function screenToWorld(x,y){return{x:(x-camX)/camScale,y:(y-camY)/camScale}}
+function nodeRadius(n){return Math.max(5,Math.min(22,4+n.count*1.8))}
+
+function drawNetwork() {
+  if(!netCtx) return;
+  const ctx=netCtx, W=netCanvas.width, H=netCanvas.height;
+  const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle=isDark?'#1a1916':'#f7f6f3';
+  ctx.fillRect(0,0,W,H);
+
+  const visNodes=netNodes.filter(n=>n.visible);
+  const selPhotos=selectedNode?selectedNode.instances.map(i=>i.photo_id):null;
+
+  netEdges.forEach(e => {
+    const a=netNodeMap[e.a], b=netNodeMap[e.b];
+    if(!a||!b||!a.visible||!b.visible) return;
+    const sp=worldToScreen(a.x,a.y), ep=worldToScreen(b.x,b.y);
+    const highlight=selectedNode&&(a===selectedNode||b===selectedNode);
+    ctx.beginPath(); ctx.moveTo(sp.x,sp.y); ctx.lineTo(ep.x,ep.y);
+    ctx.strokeStyle=highlight?'#7F77DD':(isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.07)');
+    ctx.lineWidth=highlight?1.5:0.8; ctx.stroke();
+  });
+
+  visNodes.forEach(n => {
+    const {x,y}=worldToScreen(n.x,n.y), r=nodeRadius(n)*camScale;
+    if(x+r<0||x-r>W||y+r<0||y-r>H) return;
+    const col=TYPE_COLOR[n.type]||'#888';
+    const isSelected=n===selectedNode, isHovered=n===hoveredNode;
+    const isHighlighted=selPhotos&&n!==selectedNode&&n.instances.some(i=>selPhotos.includes(i.photo_id));
+
+    ctx.beginPath(); ctx.arc(x,y,r+(isSelected||isHovered?2:0),0,Math.PI*2);
+    ctx.fillStyle=isSelected?col:col+(isDark?'99':'55');
+    ctx.fill(); ctx.strokeStyle=col;
+    ctx.lineWidth=isSelected?2.5:isHighlighted?2:1; ctx.stroke();
+
+    if(n.pinned) {
+      ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2);
+      ctx.fillStyle=isDark?'rgba(255,255,255,0.8)':'rgba(0,0,0,0.5)'; ctx.fill();
+    }
+
+    if(isHighlighted&&!isSelected) {
+      ctx.beginPath(); ctx.arc(x,y,r+4,0,Math.PI*2);
+      ctx.strokeStyle=col+'88'; ctx.lineWidth=1;
+      ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    if(r>=labelMinR||isHovered||isSelected) {
+      ctx.fillStyle=isDark?'rgba(240,237,232,0.92)':'rgba(26,25,22,0.88)';
+      ctx.font=`${Math.max(9,Math.min(12,r*0.8))}px system-ui,sans-serif`;
+      ctx.textAlign='center'; ctx.textBaseline='bottom';
+      const lbl=n.label.length>22?n.label.slice(0,21)+'…':n.label;
+      ctx.fillText(lbl,x,y-r-3);
+    }
+  });
+}
+
+function getNodeAt(mx,my) {
+  const {x:wx,y:wy}=screenToWorld(mx,my);
+  let closest=null, bestD=Infinity;
+  netNodes.forEach(n => {
+    if(!n.visible) return;
+    const dx=n.x-wx, dy=n.y-wy, d=Math.sqrt(dx*dx+dy*dy);
+    const r=nodeRadius(n)/camScale+6;
+    if(d<r&&d<bestD){bestD=d;closest=n;}
+  });
+  return closest;
+}
+
+function onNetMouseDown(e) {
+  const rect=netCanvas.getBoundingClientRect();
+  const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+  lastMX=e.clientX; lastMY=e.clientY;
+  const node=getNodeAt(mx,my);
+  if(node && !e.shiftKey) {
+    dragNode=node;
+    const wp=screenToWorld(mx,my);
+    dragOffX=node.x-wp.x; dragOffY=node.y-wp.y;
+    netCanvas.style.cursor='grabbing';
+    stopSim();
+  } else { panDragging=true; netCanvas.style.cursor='grabbing'; }
+}
+
+function onNetMouseUp(e) {
+  if(dragNode) { dragNode.pinned=true; dragNode=null; heatSimulation(0.2); }
+  panDragging=false; netCanvas.style.cursor='grab';
+}
+
+function onNetMouseMove(e) {
+  const rect=netCanvas.getBoundingClientRect();
+  const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+
+  if(dragNode) {
+    const wp=screenToWorld(mx,my);
+    dragNode.x=wp.x+dragOffX; dragNode.y=wp.y+dragOffY;
+    dragNode.vx=0; dragNode.vy=0;
+    drawNetwork(); return;
+  }
+  if(panDragging) {
+    camX+=e.clientX-lastMX; camY+=e.clientY-lastMY;
+    lastMX=e.clientX; lastMY=e.clientY;
+    drawNetwork(); return;
+  }
+
+  lastMX=e.clientX; lastMY=e.clientY;
+  const node=getNodeAt(mx,my);
+  if(node!==hoveredNode) { hoveredNode=node; drawNetwork(); }
+  if(node) {
+    const tt=document.getElementById('tooltip');
+    const pinHint=node.pinned?' · pinned (dbl-click to free)':'';
+    tt.innerHTML=`<strong>${esc(node.fullLabel)}</strong><br>${esc(TYPE_LABEL[node.type]||node.type)}<br>${node.count} photograph${node.count>1?'s':''}${pinHint}`;
+    tt.style.display='block'; tt.style.left=(e.clientX+14)+'px'; tt.style.top=(e.clientY-10)+'px';
+    netCanvas.style.cursor='grab';
+  } else {
+    document.getElementById('tooltip').style.display='none';
+    netCanvas.style.cursor='grab';
+  }
+}
+
+function onCanvasClick(e) {
+  if(Math.abs(e.clientX-lastMX)>6||Math.abs(e.clientY-lastMY)>6) return;
+  if(dragNode) return;
+  const rect=netCanvas.getBoundingClientRect();
+  const node=getNodeAt(e.clientX-rect.left,e.clientY-rect.top);
+  selectedNode=node||null; drawNetwork();
+  if(node) showNetEntityDetail(node);
+  else {
+    document.getElementById('net-entity-empty').style.display='flex';
+    document.getElementById('net-entity-detail').style.display='none';
+  }
+}
+
+function onCanvasDblClick(e) {
+  const rect=netCanvas.getBoundingClientRect();
+  const node=getNodeAt(e.clientX-rect.left,e.clientY-rect.top);
+  if(node) { node.pinned=false; heatSimulation(0.15); }
+}
+
+function onWheel(e) {
+  e.preventDefault();
+  const rect=netCanvas.getBoundingClientRect();
+  const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+  const factor=e.deltaY>0?0.85:1.18;
+  const newScale=Math.max(0.1,Math.min(6,camScale*factor));
+  camX=mx-(mx-camX)*(newScale/camScale); camY=my-(my-camY)*(newScale/camScale);
+  camScale=newScale; drawNetwork();
+}
+
+// ─── Network entity detail ────────────────────────────────────────
+function showNetEntityDetail(node) {
+  document.getElementById('net-entity-empty').style.display='none';
+  document.getElementById('net-entity-detail').style.display='block';
+  const col=TYPE_COLOR[node.type]||'#888';
+
+  const byPhoto={};
+  node.instances.forEach(inst => {
+    if(!byPhoto[inst.photo_id]) byPhoto[inst.photo_id]={pid:inst.photo_id,title:inst.photo_title,instances:[]};
+    byPhoto[inst.photo_id].instances.push(inst);
+  });
+
+  let html=`<div style="margin-bottom:12px">
+    <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:3px">${esc(node.fullLabel)}</div>
+    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:${col}">${esc(TYPE_LABEL[node.type]||node.type)}</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px;background:var(--surface2);border-radius:var(--radius)">
+    <div style="font-size:24px;font-weight:600;color:${col}">${node.count}</div>
+    <div style="font-size:11px;color:var(--text2)">photograph${node.count>1?'s':''} in common</div>
+  </div>`;
+
+  html+=`<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px">Appearances by photograph</div>`;
+
+  Object.values(byPhoto).forEach(({pid, title, instances}) => {
+    const rec = recById[pid];
+    html+=`<div style="border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;overflow:hidden">
+      <div style="padding:8px 10px;background:var(--surface2);border-bottom:1px solid var(--border);cursor:pointer" onclick="selectRecord('${pid}');switchTab('catalogue')">
+        <div style="font-size:9px;font-family:var(--mono);color:var(--text3)">${esc(pid)}</div>
+        <div style="font-size:11px;color:var(--blue);margin-top:1px">${esc(title)}…</div>
+      </div>`;
+
+    instances.forEach(inst => {
+      const fromRef = inst.src || '';
+      let teContext = '';
+      if(rec && fromRef) {
+        const teIdx = fromRef.match(/text_element\[(\d+)\]/);
+        if(teIdx) {
+          const te = (rec.te||[])[parseInt(teIdx[1])];
+          if(te) {
+            const lbl = TE_LABEL[te.type]||te.type;
+            const teText = te.text.length>80?te.text.slice(0,79)+'…':te.text;
+            teContext=`<div style="margin-top:6px;border-left:3px solid ${col};padding:4px 8px;background:var(--surface);border-radius:0 4px 4px 0">
+              <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${col};margin-bottom:2px">${esc(lbl)}</div>
+              <div style="font-size:10px;font-family:var(--mono);color:var(--text);white-space:pre-wrap;line-height:1.35">${esc(teText)}</div>
+            </div>`;
+          }
+        }
+      }
+
+      const conf = inst.conf||0;
+      html+=`<div style="padding:8px 10px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <div style="font-size:10px;color:var(--text3)">Derived from: <span style="font-family:var(--mono)">${esc(fromRef||'caption_text')}</span></div>
+          <div class="conf-bar-wrap" style="gap:5px;min-width:80px">
+            <div class="conf-bar" style="min-width:50px"><div class="conf-fill" style="width:${Math.round(conf*100)}%"></div></div>
+            <span class="conf-val">${Math.round(conf*100)}%</span>
+          </div>
+        </div>
+        ${teContext}
+        ${inst.rat?`<div style="font-size:11px;color:var(--text2);margin-top:6px;line-height:1.4;padding:6px;background:var(--surface2);border-radius:4px"><span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);display:block;margin-bottom:2px">Rationale</span>${esc(inst.rat)}</div>`:''}
+        ${inst.cert?`<div style="font-size:10px;color:var(--text3);margin-top:4px">Certainty: ${esc(inst.cert)}</div>`:''}
+        ${inst.rel?`<div style="font-size:10px;color:var(--text3);margin-top:2px">Relationship: ${esc(inst.rel)}</div>`:''}
+        ${inst.ptype?`<div style="font-size:10px;color:var(--text3);margin-top:2px">Place type: ${esc(inst.ptype)}</div>`:''}
+      </div>`;
+    });
+    html+=`</div>`;
+  });
+
+  const connectedEids=new Set();
+  netEdges.forEach(e => {
+    if(e.a===node.id) connectedEids.add(e.b);
+    if(e.b===node.id) connectedEids.add(e.a);
+  });
+  const connected=Array.from(connectedEids).map(id=>netNodeMap[id]).filter(Boolean).sort((a,b)=>b.count-a.count).slice(0,8);
+
+  if(connected.length) {
+    html+=`<div style="margin-top:12px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px">Connected entities</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">`;
+    connected.forEach(cn => {
+      const ccol=TYPE_COLOR[cn.type]||'#888';
+      html+=`<span style="font-size:11px;padding:3px 8px;border-radius:var(--radius);background:${ccol}18;color:${ccol};border:1px solid ${ccol}44;cursor:pointer" onclick="selectNetNode('${cn.id}')">${esc(cn.label)}</span>`;
+    });
+    html+=`</div></div>`;
+  }
+
+  document.getElementById('net-entity-detail').innerHTML=html;
+}
+
+function selectNetNode(eid) {
+  const node=netNodeMap[eid]; if(!node) return;
+  selectedNode=node; fitToNode(node); drawNetwork(); showNetEntityDetail(node);
+}
+
+function fitToNode(node) {
+  const {x,y}=worldToScreen(node.x,node.y);
+  const W=netCanvas.width, H=netCanvas.height;
+  camX+=W/2-x; camY+=H/2-y;
+}
+
+// ─── Network search ───────────────────────────────────────────────
+// The network search also runs through runSearch() → updateNetSearch()
+// which is debounced. Direct calls here come only from the debounced path.
+function updateNetSearch(q) {
+  const res=document.getElementById('net-search-res');
+  const hint=document.getElementById('net-search-hint');
+  if(!q) { res.innerHTML=''; hint.style.display='block'; return; }
+  hint.style.display='none';
+  const ql=q.toLowerCase();
+  const pool = netNodes;
+  const matches = pool.filter(e =>
+    (e.fullLabel||e.label||'').toLowerCase().includes(ql) ||
+    TYPE_LABEL[e.type]?.toLowerCase().includes(ql)
+  ).slice(0,40);
+
+  res.innerHTML='';
+  if(!matches.length) {
+    res.innerHTML='<div style="padding:10px;font-size:12px;color:var(--text3)">No entities match</div>';
+    return;
+  }
+  matches.forEach(ent => {
+    const col=TYPE_COLOR[ent.type]||'#888';
+    const node=netNodeMap[ent.id||ent.eid]||null;
+    const isVisible=node&&node.visible;
+    const div=document.createElement('div');
+    div.className='nsr-item'+(node&&node===selectedNode?' active':'');
+    div.innerHTML=`<div class="nsr-name">${esc(ent.fullLabel||ent.label)}</div>
+      <div class="nsr-meta" style="color:${col}">${esc(TYPE_LABEL[ent.type]||ent.type)} &middot; ${ent.count} photo${ent.count>1?'s':''}${!isVisible&&netInit?' · <em style="color:var(--text3)">hidden</em>':''}</div>`;
+    div.onclick=()=>{
+      if(!netInit) initNetwork();
+      const n=netNodeMap[ent.id||ent.eid];
+      if(n) {
+        if(!n.visible && n.count < minPhotos) {
+          minPhotos=n.count;
+          document.getElementById('sl-minphotos').value=minPhotos;
+          document.getElementById('lbl-minphotos').textContent=minPhotos===1?'all':minPhotos;
+          applyMinPhotosFilter();
+        }
+        selectNetNode(n.id);
+      } else {
+        showNetEntityDetail({...ent, fullLabel:ent.fullLabel||ent.label, id:ent.eid||ent.id, instances:ent.instances});
+      }
+      document.querySelectorAll('.nsr-item').forEach(i=>i.classList.remove('active'));
+      div.classList.add('active');
+    };
+    res.appendChild(div);
+  });
+}
+
+// ─── Utils ────────────────────────────────────────────────────────
+function esc(s) {
+  if(s===null||s===undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+</script>
+<script>
+// Data Hub: load every structured (v6) record; "Load file" still works.
+HubData.autoload("compact_v6", (rows, info) => {
+  initApp({
+    schema_version: "data-hub",
+    exported_at: info.generatedAt,
+    source_file: "Daily Herald Data Hub",
+    record_count: rows.length,
+    records: rows
+  });
+}, { label: "structured records" });
+</script>
+</body>
+</html>

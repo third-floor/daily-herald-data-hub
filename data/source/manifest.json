@@ -1,0 +1,245 @@
+{
+  "generated_at": "2026-10-09T08:33:12+00:00",
+  "max_bytes": 20000000,
+  "sources": {
+    "transcriptions_v1": {
+      "format": "json",
+      "role": "records",
+      "inputs": [
+        {
+          "file": "data_1.json",
+          "bytes": 11191238,
+          "sha256": "eddbff41766251e7f3a04ae4cd45ec5127979ae19faa448cc0bf0d108eb77844",
+          "records": 5000
+        },
+        {
+          "file": "data_2.json",
+          "bytes": 6824556,
+          "sha256": "e0e73aae15578cc0c37e0cd2fc6d241bdd3249461ceb151ce8c77c4e2d4f69d9",
+          "records": 5000
+        },
+        {
+          "file": "data_3.json",
+          "bytes": 6082132,
+          "sha256": "e52dbd42bf19c5ba4cd12fb7ae7ec4ed31c7480c6ffe11cd8d13434ab462cfd9",
+          "records": 5000
+        },
+        {
+          "file": "data_4.json",
+          "bytes": 2503038,
+          "sha256": "0881c8b3a4e56fc99275de5f33e549d4b6cb0e94bb3b5736e6c22b21b447883d",
+          "records": 2195
+        }
+      ],
+      "records": 17195,
+      "duplicates_removed": 0,
+      "records_without_uid": 0,
+      "dropped_fields": {
+        "output - gemini-2.5-flash-preview-05-20": 17195
+      },
+      "schema_counts": {
+        "v1_flat_json": 17195
+      },
+      "parts": [
+        {
+          "file": "part-0001.json",
+          "bytes": 19999940,
+          "records": 16197
+        },
+        {
+          "file": "part-0002.json",
+          "bytes": 1106219,
+          "records": 998
+        }
+      ]
+    },
+    "metadata_v6": {
+      "format": "json",
+      "role": "records",
+      "inputs": [
+        {
+          "file": "data_5.json",
+          "bytes": 9909173,
+          "sha256": "65f34f7e24eb3e6061ab97dcb70311c3f89cde47a5a07921569a448777fe11d9",
+          "wrapper": {
+            "schema_version": "1.0",
+            "exported_at": "2026-06-30T14:54:22.381918+00:00",
+            "source_file": "NO_DESCRIPTION_daily_herald_filtered_output_GEMINI_PROCESSED_NOD_v2.xlsx",
+            "record_count": 3507
+          },
+          "wrapper_list_key": "records",
+          "records": 3507
+        },
+        {
+          "file": "data_6.json",
+          "bytes": 15232272,
+          "sha256": "40dd26d4c758a5ffa782f26521e0b5ad076607941f327ebd345722d2a448bb4f",
+          "records": 5000
+        },
+        {
+          "file": "data_7.json",
+          "bytes": 15225960,
+          "sha256": "96616778fff94ed8f4968670da6d4e081813704501f3e32f9d881922f470a498",
+          "records": 5000
+        },
+        {
+          "file": "data_8.json",
+          "bytes": 14352237,
+          "sha256": "51bbb7d5552f8326920703940fc59e7146f386fc07db4387c019f42fa9b9ca27",
+          "records": 5000
+        },
+        {
+          "file": "data_9.json",
+          "bytes": 14236756,
+          "sha256": "1a6529168f3c3b0796ba0341866d067cfbce9b9e9b5b6d6159fe9b43ab170e6e",
+          "records": 5000
+        },
+        {
+          "file": "data_10.json",
+          "bytes": 386332,
+          "sha256": "e89ee6205874f2793dfb3352de50390d1afcbe0a74980789cb44269f5da78db2",
+          "records": 136
+        }
+      ],
+      "records": 20136,
+      "duplicates_removed": 3507,
+      "records_without_uid": 0,
+      "dropped_fields": {},
+      "schema_counts": {
+        "v6_compact_json": 23643
+      },
+      "parts": [
+        {
+          "file": "part-0001.json",
+          "bytes": 19999420,
+          "records": 6794
+        },
+        {
+          "file": "part-0002.json",
+          "bytes": 19998475,
+          "records": 6959
+        },
+        {
+          "file": "part-0003.json",
+          "bytes": 17507520,
+          "records": 6383
+        }
+      ]
+    },
+    "pipeline_xlsx": {
+      "format": "xlsx",
+      "role": "records",
+      "inputs": [
+        {
+          "file": "daily_herald_transcriptions_20k_visual_elements_GEMINI_FRONT_OBJECTS_v7_081026am1.xlsx",
+          "bytes": 27517404,
+          "sha256": "6d17b90fec050a9602c7fb18affee12b0e6301a780387febbbbd22da1d4b7a83",
+          "sheet": "Sheet1",
+          "columns": [
+            "uid",
+            "identifier",
+            "title",
+            "description",
+            "date",
+            "maker",
+            "image_links",
+            "url",
+            "aaaa",
+            "bbbb",
+            "image_links.1",
+            "gem_transcription_flat",
+            "gem_status",
+            "gem_validation_level",
+            "gem_controlled_objects",
+            "gem_other_objects",
+            "gem_dropped_objects",
+            "gem_controlled_objects_flat",
+            "gem_other_objects_flat",
+            "gem_all_objects_flat",
+            "gem_validation_notes",
+            "gem_image_width",
+            "gem_image_height",
+            "gem_sent_width",
+            "gem_sent_height",
+            "gem_input_text_tokens",
+            "gem_input_image_tokens",
+            "gem_input_total_tokens",
+            "gem_output_tokens",
+            "gem_thoughts_tokens",
+            "gem_total_tokens",
+            "gem_estimated_cost_usd",
+            "gem_image_used",
+            "gem_image_override",
+            "gem_model",
+            "gem_thinking_level",
+            "gem_duration_seconds",
+            "gem_attempts",
+            "gem_attempted_at",
+            "gem_processed_at",
+            "gem_error",
+            "gem_finish_reason",
+            "gem_raw_backup_path",
+            "gem_pipeline_version",
+            "gem_prompt_version",
+            "gem_schema_version",
+            "gem_vocabulary_version"
+          ],
+          "renamed_columns": [],
+          "json_columns": [
+            "gem_controlled_objects",
+            "gem_other_objects",
+            "gem_dropped_objects"
+          ],
+          "unparsed_json": {
+            "gem_transcription_flat": 14
+          },
+          "records": 20136
+        }
+      ],
+      "records": 20136,
+      "duplicates_removed": 0,
+      "records_without_uid": 0,
+      "dropped_fields": {},
+      "schema_counts": {
+        "pipeline_xlsx": 20136
+      },
+      "parts": [
+        {
+          "file": "part-0001.json",
+          "bytes": 19993183,
+          "records": 3457
+        },
+        {
+          "file": "part-0002.json",
+          "bytes": 19994923,
+          "records": 3458
+        },
+        {
+          "file": "part-0003.json",
+          "bytes": 19995717,
+          "records": 3447
+        },
+        {
+          "file": "part-0004.json",
+          "bytes": 19999803,
+          "records": 3422
+        },
+        {
+          "file": "part-0005.json",
+          "bytes": 19997080,
+          "records": 3442
+        },
+        {
+          "file": "part-0006.json",
+          "bytes": 16810127,
+          "records": 2910
+        }
+      ]
+    }
+  },
+  "uid_overlap": {
+    "metadata_v6 + pipeline_xlsx": 20136,
+    "transcriptions_v1": 17195
+  },
+  "unique_uids": 37331
+}

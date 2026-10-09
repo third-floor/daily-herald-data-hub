@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visual Element Spatial Explorer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+:root{
+  --bg:#08111f;--panel:#0d1a2b;--panel2:#101f33;--border:#294661;
+  --text:#d9ebff;--muted:#83a3c2;--muted2:#587895;--accent:#79c9ff;
+  --good:#27d3a2;--warn:#f2b84b;--purple:#c0a0ff;--danger:#ff6b7c;
+  --shadow:0 16px 50px rgba(0,0,0,.28);
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 20% 0%,rgba(41,121,255,.10),transparent 34rem),var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+a{color:var(--accent)}
+button,select,input{font:inherit}
+.app{max-width:1440px;margin:0 auto;padding:24px}
+h1,h2,h3,p{margin-top:0}
+h1{margin-bottom:6px;font-size:22px}
+.sub{color:var(--muted);font-size:13px;line-height:1.55}
+.header{padding:18px 20px;border:1px solid var(--border);border-radius:14px;background:linear-gradient(135deg,rgba(13,26,43,.98),rgba(14,35,57,.98));box-shadow:var(--shadow)}
+.upload-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:16px}
+.file-btn,.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 13px;border-radius:9px;border:1px solid var(--border);background:#17314c;color:#fff;font-weight:700;cursor:pointer;user-select:none}
+.file-btn:hover,.btn:hover{filter:brightness(1.08)}
+.file-btn input{display:none}
+.btn.tiny{padding:5px 8px;font-size:10px;font-weight:650}
+.btn.active{border-color:var(--accent);box-shadow:0 0 0 1px rgba(121,201,255,.35) inset}
+.status{color:var(--muted);font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.status.good{color:var(--good)}.status.bad{color:var(--danger)}.status.frozen{color:var(--warn)}
+.workspace{display:grid;grid-template-columns:minmax(480px,1.08fr) minmax(400px,.92fr);gap:18px;margin-top:18px;align-items:start}
+@media(max-width:1000px){.workspace{grid-template-columns:1fr}}
+.panel{border:1px solid var(--border);border-radius:14px;background:rgba(13,26,43,.96);box-shadow:var(--shadow);overflow:hidden}
+.panel-head{padding:13px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px}
+.panel-head h2{margin:0;font-size:14px;text-transform:uppercase;letter-spacing:.10em;color:var(--muted)}
+.panel-body{padding:14px}
+
+.photo-shell{width:min(100%,760px);aspect-ratio:1/1;margin:0 auto;position:relative;border:1px solid #426786;border-radius:10px;overflow:hidden;cursor:crosshair;background:linear-gradient(rgba(121,201,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(121,201,255,.055) 1px,transparent 1px),linear-gradient(180deg,#111e2e,#0a1421);background-size:10% 10%,10% 10%,100% 100%;touch-action:none}
+.photo-shell::before{content:"NORMALIZED PHOTOGRAPH FRAME · 0–1000 × 0–1000";position:absolute;left:10px;top:9px;z-index:5;pointer-events:none;color:rgba(217,235,255,.48);font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.08em;text-shadow:0 1px 3px #000}
+#mapCanvas,#frameCanvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#mapCanvas{z-index:1;pointer-events:none}
+#frameCanvas{z-index:2;pointer-events:none}
+.axis-label{position:absolute;z-index:5;pointer-events:none;color:rgba(217,235,255,.34);font:9px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-shadow:0 1px 2px #000}
+.axis-label.t{top:7px;left:50%;transform:translateX(-50%)}.axis-label.b{bottom:7px;left:50%;transform:translateX(-50%)}.axis-label.l{left:7px;top:50%;transform:translateY(-50%) rotate(-90deg)}.axis-label.r{right:7px;top:50%;transform:translateY(-50%) rotate(90deg)}
+.freeze-pill{display:none;position:absolute;right:9px;top:8px;z-index:6;padding:3px 7px;border:1px solid rgba(242,184,75,.75);border-radius:999px;background:rgba(8,17,31,.88);color:var(--warn);font:9px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.photo-shell.frozen .freeze-pill{display:block}
+.frame-note{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:10px;color:var(--muted);font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.coord{color:var(--accent);font-weight:700}
+.help{margin-top:10px;padding:9px 10px;border-left:3px solid var(--accent);background:rgba(121,201,255,.045);border-radius:6px;color:var(--muted);font-size:11px;line-height:1.55}
+.controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;color:var(--muted);font:11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.controls label{display:flex;align-items:center;gap:6px}
+select,input[type=range]{border:1px solid var(--border);background:var(--panel2);color:var(--text);border-radius:7px;padding:6px 8px;font:11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.map-controls{margin-top:12px;padding:10px;border:1px solid var(--border);border-radius:9px;background:#0a1726}
+.map-controls .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.map-progress{margin-top:6px;color:var(--muted2);font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.legend{display:flex;gap:6px 10px;flex-wrap:wrap;margin-top:8px}
+.legend-item{display:inline-flex;align-items:center;gap:5px;color:var(--muted);font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.legend-swatch{width:11px;height:11px;border-radius:3px;border:1px solid rgba(255,255,255,.35);flex:0 0 auto}
+
+.empty{padding:28px 16px;color:var(--muted2);text-align:center;font-size:13px;line-height:1.6}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:9px 10px}
+.stat .k{font:9px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2)}
+.stat .v{margin-top:3px;font:700 17px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--text)}
+.results{display:flex;flex-direction:column;gap:9px}
+.result-card{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.result-card.selected{border-color:var(--accent);box-shadow:0 0 0 1px rgba(121,201,255,.22) inset}
+.result-top{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:9px;align-items:start}
+.rank{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:#173a57;border:1px solid #3e6c90;color:var(--accent);font:700 11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.term{min-width:0;font-weight:800;font-size:14px;overflow-wrap:anywhere}
+.badge{display:inline-block;padding:2px 6px;border-radius:999px;border:1px solid;font:9px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:nowrap}
+.badge.ctrl{color:var(--accent);border-color:#3b698c;background:rgba(121,201,255,.06)}
+.badge.other{color:var(--purple);border-color:#674f8f;background:rgba(192,160,255,.06)}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:8px}
+.metric{border-top:1px solid rgba(41,70,97,.72);padding-top:6px;min-width:0}
+.metric .mk{color:var(--muted2);font:8px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-transform:uppercase}
+.metric .mv{color:var(--text);margin-top:2px;font:11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.extras{margin-top:8px;font-size:11px;color:var(--muted);line-height:1.55}.extras b{color:#bcdcff}
+.detail-chip{display:inline-block;margin:2px 4px 2px 0;padding:1px 6px;border:1px solid #506c87;border-radius:999px;color:#c9e4ff;font:9px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+.examples{margin-top:9px;border-top:1px solid rgba(41,70,97,.72);padding-top:8px}
+.examples-title{color:var(--muted2);font:9px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+.example-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:6px 0;border-bottom:1px solid rgba(41,70,97,.4);align-items:start}
+.example-row:last-child{border-bottom:0}
+.example-main{min-width:0;font-size:10px;color:var(--muted);line-height:1.45}
+.example-main b{color:var(--text)}
+.example-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.example-actions a{text-decoration:none}
+.image-preview{margin-top:8px;padding:8px;border:1px solid var(--border);border-radius:8px;background:#08131f}
+.image-wrap{position:relative;width:100%;background:#000;border-radius:6px;overflow:hidden}
+.image-wrap img{display:block;width:100%;height:auto;max-height:540px;object-fit:contain}
+.image-wrap svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.image-wrap rect{fill:none;stroke:var(--accent);stroke-width:3;vector-effect:non-scaling-stroke}
+.image-wrap text{font:18px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#fff;stroke:#000;stroke-width:4;paint-order:stroke}
+.preview-note{margin-top:5px;color:var(--muted2);font:9px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+</style>
+<script src="../assets/hub-data.js"></script>
+</head>
+
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Visual Element Spatial Explorer</h1>
+    <div class="sub">
+      Data loads automatically from the Data Hub (or load your own XLSX export). Hover over the normalized photograph frame, and inspect the five visual elements
+      most frequently covering each point. Turn on the categorical map to colour the frame by the dominant element.
+      Click once to freeze an inspection point; click the frame again to unfreeze.
+    </div>
+
+    <div class="upload-row">
+      <label class="file-btn">
+        <input id="fileInput" type="file" accept=".xlsx,.xls,.xlsm">
+        <span>Load XLSX file</span>
+      </label>
+      <div id="status" class="status">No file loaded.</div>
+      <div class="controls">
+        <label>Ranking
+          <select id="rankMode">
+            <option value="photos">Photos covering point</option>
+            <option value="detections">Detection instances</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="workspace">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Photograph template</h2>
+        <div id="coordReadout" class="status">x — · y —</div>
+      </div>
+
+      <div class="panel-body">
+        <div id="photoShell" class="photo-shell">
+          <canvas id="mapCanvas"></canvas>
+          <canvas id="frameCanvas"></canvas>
+          <span class="axis-label t">TOP</span><span class="axis-label b">BOTTOM</span>
+          <span class="axis-label l">LEFT</span><span class="axis-label r">RIGHT</span>
+          <span class="freeze-pill">POINT FROZEN · CLICK AGAIN TO RELEASE</span>
+        </div>
+
+        <div class="frame-note">
+          <span>Hover to inspect · click to freeze/unfreeze.</span>
+          <span>Gemini normalized image space: 0–1000.</span>
+        </div>
+
+        <div class="map-controls">
+          <div class="row">
+            <label><input id="dominantMapToggle" type="checkbox"> <b>Dominant-element colour map</b></label>
+            <label>Resolution
+              <select id="mapResolution">
+                <option value="24">24 × 24</option>
+                <option value="36" selected>36 × 36</option>
+                <option value="50">50 × 50</option>
+              </select>
+            </label>
+            <label>Opacity <input id="mapOpacity" type="range" min="20" max="90" value="58"></label>
+          </div>
+          <div id="mapProgress" class="map-progress">
+            The colour map is calculated only when switched on.
+          </div>
+          <div id="mapLegend" class="legend"></div>
+        </div>
+
+        <div class="help">
+          At a point, a detection counts when its <b>box_2d</b> contains that coordinate.
+          The categorical map assigns each grid cell to whichever term has the highest count there.
+          With “Photos covering point”, the map counts each term at most once per photograph per cell.
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="panel-head">
+        <h2>Top five at this point</h2>
+        <div id="pointLabel" class="status">Move over frame</div>
+      </div>
+      <div id="rightBody" class="panel-body">
+        <div class="empty">Load an XLSX file, then hover over the photograph template.</div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+const $ = id => document.getElementById(id);
+
+const state = {
+  rows: [],
+  validRows: [],
+  loaded: false,
+  fileName: "",
+  point: null,
+  frozen: false,
+  selectedTerm: null,
+  map: null,
+  mapCacheKey: "",
+  activePreviewId: null
+};
+
+function safeJsonArray(value){
+  if(!value) return [];
+  if(Array.isArray(value)) return value;
+  if(typeof value !== "string") return [];
+  const text=value.trim();
+  if(!text || text.toLowerCase()==="nan" || text==="[]") return [];
+  try{ const parsed=JSON.parse(text); return Array.isArray(parsed)?parsed:[]; }catch{return [];}
+}
+function asText(v){
+  if(v===null || v===undefined) return "";
+  const s=String(v).trim();
+  return ["nan","none","null","undefined"].includes(s.toLowerCase())?"":s;
+}
+function asNumber(v){const n=Number(v);return Number.isFinite(n)?n:NaN;}
+function normaliseTerm(v){return asText(v).toLowerCase();}
+function esc(s){
+  return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+}
+function escAttr(s){return esc(s);}
+function mean(values){const a=values.filter(Number.isFinite);return a.length?a.reduce((x,y)=>x+y,0)/a.length:NaN;}
+function pct(n,d,dp=1){return d?`${(100*n/d).toFixed(dp)}%`:"0%";}
+function parseYear(v){
+  if(v instanceof Date && !isNaN(v)) return v.getUTCFullYear();
+  if(typeof v==="number" && v>20000 && v<80000){
+    const d=new Date(Math.round((v-25569)*86400000));
+    return d.getUTCFullYear();
+  }
+  const m=asText(v).match(/(1[89]\d\d|20\d\d)/);
+  return m?Number(m[1]):null;
+}
+function parseMakers(row){
+  const source=asText(row.gem_maker_flat)||asText(row.maker),seen=new Set();
+  return source.split(/\s*;\s*/).map(s=>s.trim()).filter(Boolean).filter(s=>{
+    const k=s.toLowerCase(); if(seen.has(k))return false; seen.add(k); return true;
+  });
+}
+function parseYears(row){
+  const years=new Set(),g=asText(row.gem_date_flat);
+  if(g) g.split(/\s*\/\s*/).forEach(part=>{const y=parseYear(part);if(y)years.add(y);});
+  if(!years.size){const y=parseYear(row.date);if(y)years.add(y);}
+  return [...years].sort((a,b)=>a-b);
+}
+function parseBox(box){
+  if(!Array.isArray(box)||box.length!==4)return null;
+  const nums=box.map(Number);if(nums.some(v=>!Number.isFinite(v)))return null;
+  const [y1,x1,y2,x2]=nums;
+  if(x1<0||y1<0||x2>1000||y2>1000||x2<=x1||y2<=y1)return null;
+  return {y1,x1,y2,x2};
+}
+function frontImageUrl(raw){
+  const links=asText(raw.image_links||raw["image_links.1"]).split(/;\s*/).map(s=>s.trim()).filter(Boolean);
+  const used=asText(raw.gem_image_used);
+  if(used){
+    const hit=links.find(l=>l.endsWith(used));
+    if(hit)return hit;
+  }
+  return links[0]||"";
+}
+function normaliseDetection(obj,kind,rowIndex){
+  const term=normaliseTerm(obj&&obj.term),box=parseBox(obj&&obj.box_2d);
+  if(!term||!box)return null;
+  return {term,kind,detail:asText(obj.detail),confidence:asNumber(obj.confidence_score),rationale:asText(obj.rationale),box,rowIndex};
+}
+function normaliseRow(raw,index){
+  const controlled=safeJsonArray(raw.gem_controlled_objects).map(o=>normaliseDetection(o,"ctrl",index)).filter(Boolean);
+  const other=safeJsonArray(raw.gem_other_objects).map(o=>normaliseDetection(o,"other",index)).filter(Boolean);
+  return {
+    index,
+    uid:asText(raw.uid)||`row_${index+1}`,
+    identifier:asText(raw.identifier),
+    title:asText(raw.title),
+    catalogueUrl:asText(raw.url),
+    imageUrl:frontImageUrl(raw),
+    makers:parseMakers(raw),
+    years:parseYears(raw),
+    detections:controlled.concat(other)
+  };
+}
+function containsPoint(box,x,y){return x>=box.x1&&x<=box.x2&&y>=box.y1&&y<=box.y2;}
+function displayTerm(term){return term.split("_").map(w=>w?w[0].toUpperCase()+w.slice(1):w).join(" ");}
+function uniqueTop(values,limit=4){
+  const counts=new Map();values.filter(Boolean).forEach(v=>counts.set(v,(counts.get(v)||0)+1));
+  return [...counts.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,limit).map(([value,count])=>({value,count}));
+}
+function termColor(term,alpha=1){
+  let h=2166136261;
+  for(let i=0;i<term.length;i++){h^=term.charCodeAt(i);h=Math.imul(h,16777619);}
+  const hue=((h>>>0)%360);
+  const sat=66+((h>>>8)%16);
+  const light=48+((h>>>16)%10);
+  return `hsla(${hue},${sat}%,${light}%,${alpha})`;
+}
+function termAtPointRows(term,x,y){
+  const rows=[];
+  for(const row of state.validRows){
+    const dets=row.detections.filter(d=>d.term===term&&containsPoint(d.box,x,y));
+    if(dets.length)rows.push({row,dets});
+  }
+  return rows;
+}
+function buildPointStats(x,y){
+  const termMap=new Map(),photosWithAnyHit=new Set();
+  let totalHits=0;
+  for(const row of state.validRows){
+    for(const det of row.detections){
+      if(!containsPoint(det.box,x,y))continue;
+      totalHits++;photosWithAnyHit.add(row.index);
+      if(!termMap.has(det.term))termMap.set(det.term,{term:det.term,kinds:new Set(),detections:0,rowIds:new Set(),confidences:[],details:[],rationales:[],makers:[],years:[],examples:new Map()});
+      const s=termMap.get(det.term);
+      s.kinds.add(det.kind);s.detections++;s.rowIds.add(row.index);
+      if(Number.isFinite(det.confidence))s.confidences.push(det.confidence);
+      if(det.detail)s.details.push(det.detail);if(det.rationale)s.rationales.push(det.rationale);
+      row.makers.forEach(m=>s.makers.push(m));row.years.forEach(y0=>s.years.push(y0));
+      if(!s.examples.has(row.index))s.examples.set(row.index,{row,dets:[]});
+      s.examples.get(row.index).dets.push(det);
+    }
+  }
+  const mode=$("rankMode").value;
+  const terms=[...termMap.values()].map(s=>({...s,photos:s.rowIds.size,meanConfidence:mean(s.confidences),detailTop:uniqueTop(s.details,4),makerTop:uniqueTop(s.makers,3),rationaleTop:uniqueTop(s.rationales,2),minYear:s.years.length?Math.min(...s.years):null,maxYear:s.years.length?Math.max(...s.years):null,exampleRows:[...s.examples.values()]}))
+    .sort((a,b)=>mode==="detections"?(b.detections-a.detections||b.photos-a.photos||(b.meanConfidence||0)-(a.meanConfidence||0)||a.term.localeCompare(b.term)):(b.photos-a.photos||b.detections-a.detections||(b.meanConfidence||0)-(a.meanConfidence||0)||a.term.localeCompare(b.term)));
+  return {terms,totalHits,photosWithAnyHit:photosWithAnyHit.size};
+}
+function exampleHtml(example,term,idx){
+  const r=example.row;
+  const catalogue=r.catalogueUrl?`<a class="btn tiny" href="${escAttr(r.catalogueUrl)}" target="_blank" rel="noopener">record ↗</a>`:"";
+  const image=r.imageUrl?`<button class="btn tiny" data-preview-row="${r.index}" data-preview-term="${escAttr(term)}" data-preview-id="${idx}">image + box</button>`:"";
+  const meta=[r.identifier?`identifier ${esc(r.identifier)}`:"",r.makers.length?esc(r.makers.slice(0,2).join("; ")):"",r.years.length?esc(r.years.join(", ")):""].filter(Boolean).join(" · ");
+  return `<div class="example-row"><div class="example-main"><b>${esc(r.uid)}</b>${r.title?` · ${esc(r.title)}`:""}<br>${meta||"No additional metadata."}</div><div class="example-actions">${catalogue}${image}</div></div><div id="preview-${idx}" class="image-preview" style="display:none"></div>`;
+}
+function renderPoint(x,y){
+  state.point={x,y};
+  $("coordReadout").innerHTML=`x <span class="coord">${Math.round(x)}</span> · y <span class="coord">${Math.round(y)}</span>`;
+  $("pointLabel").className=state.frozen?"status frozen":"status";
+  $("pointLabel").textContent=(state.frozen?"FROZEN · ":"")+`x ${Math.round(x)} · y ${Math.round(y)}`;
+  if(!state.loaded){$("rightBody").innerHTML=`<div class="empty">Load an XLSX file first.</div>`;drawFrame(x,y);return;}
+  const stats=buildPointStats(x,y),top=stats.terms.slice(0,5);
+  if(!top.some(t=>t.term===state.selectedTerm))state.selectedTerm=top[0]?.term||null;
+  const summary=`<div class="summary"><div class="stat"><div class="k">Photos loaded</div><div class="v">${state.validRows.length}</div></div><div class="stat"><div class="k">Photos with hit</div><div class="v">${stats.photosWithAnyHit}</div></div><div class="stat"><div class="k">Detections here</div><div class="v">${stats.totalHits}</div></div></div>`;
+  if(!top.length){$("rightBody").innerHTML=summary+`<div class="empty">No bounding boxes in the loaded dataset cover this point.</div>`;drawFrame(x,y);return;}
+  const cards=top.map((s,i)=>{
+    const kind=s.kinds.size>1?"mixed":s.kinds.has("ctrl")?"ctrl":"other";
+    const kindBadge=kind==="other"?`<span class="badge other">free-text / other</span>`:kind==="ctrl"?`<span class="badge ctrl">controlled</span>`:`<span class="badge ctrl">controlled + other</span>`;
+    const details=s.detailTop.length?s.detailTop.map(d=>`<span class="detail-chip">${esc(d.value)}${d.count>1?` ×${d.count}`:""}</span>`).join(""):`<span style="color:var(--muted2)">none recorded</span>`;
+    const makers=s.makerTop.length?s.makerTop.map(m=>`${esc(m.value)}${m.count>1?` (${m.count})`:""}`).join("; "):"—";
+    const years=s.minYear?(s.minYear===s.maxYear?String(s.minYear):`${s.minYear}–${s.maxYear}`):"—";
+    const rationale=s.rationaleTop.length?esc(s.rationaleTop[0].value):"—";
+    const examples=s.exampleRows.slice(0,3).map((ex,j)=>exampleHtml(ex,s.term,`${i}-${j}`)).join("");
+    return `<div class="result-card ${s.term===state.selectedTerm?"selected":""}" data-term-card="${escAttr(s.term)}"><div class="result-top"><div class="rank">${i+1}</div><div><div class="term">${esc(displayTerm(s.term))}</div><div style="margin-top:4px">${kindBadge}</div></div><div class="status">${pct(s.photos,state.validRows.length)} of photos</div></div>
+      <div class="metrics"><div class="metric"><div class="mk">Photos</div><div class="mv">${s.photos}</div></div><div class="metric"><div class="mk">Instances</div><div class="mv">${s.detections}</div></div><div class="metric"><div class="mk">Mean conf.</div><div class="mv">${Number.isFinite(s.meanConfidence)?s.meanConfidence.toFixed(2):"—"}</div></div><div class="metric"><div class="mk">Years</div><div class="mv">${years}</div></div></div>
+      <div class="extras"><div><b>Observed details:</b> ${details}</div><div style="margin-top:4px"><b>Common makers:</b> ${makers}</div><div style="margin-top:4px"><b>Example rationale:</b> ${rationale}</div></div>
+      <div class="examples"><div class="examples-title">Example records containing ${esc(displayTerm(s.term))} at this point</div>${examples||"<div class='status'>No examples.</div>"}</div></div>`;
+  }).join("");
+  $("rightBody").innerHTML=summary+`<div class="results">${cards}</div>`;
+  drawFrame(x,y);
+}
+function setupCanvas(canvas){
+  const shell=$("photoShell"),rect=shell.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+  canvas.width=Math.max(1,Math.round(rect.width*dpr));canvas.height=Math.max(1,Math.round(rect.height*dpr));
+  const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,rect.width,rect.height);
+  return {ctx,rect};
+}
+function drawFrame(x=null,y=null){
+  const {ctx,rect}=setupCanvas($("frameCanvas"));
+  ctx.strokeStyle="rgba(121,201,255,.18)";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(rect.width/2,0);ctx.lineTo(rect.width/2,rect.height);ctx.moveTo(0,rect.height/2);ctx.lineTo(rect.width,rect.height/2);ctx.stroke();
+  if(x===null||y===null)return;
+  const px=x/1000*rect.width,py=y/1000*rect.height;
+  ctx.strokeStyle=state.frozen?"rgba(242,184,75,.9)":"rgba(121,201,255,.76)";ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(px,0);ctx.lineTo(px,rect.height);ctx.moveTo(0,py);ctx.lineTo(rect.width,py);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=state.frozen?"#f2b84b":"#79c9ff";ctx.beginPath();ctx.arc(px,py,4,0,Math.PI*2);ctx.fill();ctx.strokeStyle="rgba(255,255,255,.95)";ctx.beginPath();ctx.arc(px,py,7,0,Math.PI*2);ctx.stroke();
+}
+function pointFromEvent(event){
+  const rect=$("photoShell").getBoundingClientRect();
+  return {x:Math.max(0,Math.min(1000,(event.clientX-rect.left)/rect.width*1000)),y:Math.max(0,Math.min(1000,(event.clientY-rect.top)/rect.height*1000))};
+}
+
+function mapCacheKey(){return `${state.fileName}|${$("rankMode").value}|${$("mapResolution").value}`;}
+function buildDominantMap(){
+  if(!state.loaded)return;
+  const n=Number($("mapResolution").value),mode=$("rankMode").value,key=mapCacheKey();
+  if(state.map&&state.mapCacheKey===key){drawDominantMap();return;}
+  $("mapProgress").textContent=`Calculating ${n} × ${n} categorical map…`;
+  const termCounts=new Map();
+  const ensureTerm=t=>{if(!termCounts.has(t))termCounts.set(t,new Uint32Array(n*n));return termCounts.get(t);};
+  for(const row of state.validRows){
+    if(mode==="photos"){
+      const byTerm=new Map();
+      for(const d of row.detections){if(!byTerm.has(d.term))byTerm.set(d.term,[]);byTerm.get(d.term).push(d.box);}
+      for(const [term,boxes] of byTerm){
+        const arr=ensureTerm(term),covered=new Set();
+        for(const b of boxes){
+          const x0=Math.max(0,Math.floor(b.x1/1000*n)),x1=Math.min(n-1,Math.floor((Math.max(b.x1,b.x2-1e-9))/1000*n));
+          const y0=Math.max(0,Math.floor(b.y1/1000*n)),y1=Math.min(n-1,Math.floor((Math.max(b.y1,b.y2-1e-9))/1000*n));
+          for(let gy=y0;gy<=y1;gy++)for(let gx=x0;gx<=x1;gx++)covered.add(gy*n+gx);
+        }
+        covered.forEach(i=>arr[i]++);
+      }
+    }else{
+      for(const d of row.detections){
+        const arr=ensureTerm(d.term),b=d.box;
+        const x0=Math.max(0,Math.floor(b.x1/1000*n)),x1=Math.min(n-1,Math.floor((Math.max(b.x1,b.x2-1e-9))/1000*n));
+        const y0=Math.max(0,Math.floor(b.y1/1000*n)),y1=Math.min(n-1,Math.floor((Math.max(b.y1,b.y2-1e-9))/1000*n));
+        for(let gy=y0;gy<=y1;gy++)for(let gx=x0;gx<=x1;gx++)arr[gy*n+gx]++;
+      }
+    }
+  }
+  const winner=new Array(n*n).fill(null),winnerCount=new Uint32Array(n*n);
+  for(const [term,arr] of termCounts){
+    for(let i=0;i<arr.length;i++){
+      if(arr[i]>winnerCount[i]||(arr[i]===winnerCount[i]&&arr[i]>0&&term<(winner[i]||"\uffff"))){winnerCount[i]=arr[i];winner[i]=term;}
+    }
+  }
+  state.map={n,winner,winnerCount};state.mapCacheKey=key;
+  drawDominantMap();
+  $("mapProgress").textContent=`Map ready · ${n*n.toLocaleString()} cells · ${termCounts.size.toLocaleString()} observed terms.`;
+}
+function drawDominantMap(){
+  const canvas=$("mapCanvas"),{ctx,rect}=setupCanvas(canvas);
+  if(!$("dominantMapToggle").checked||!state.map){$("mapLegend").innerHTML="";return;}
+  const {n,winner,winnerCount}=state.map,alpha=Number($("mapOpacity").value)/100,cw=rect.width/n,ch=rect.height/n,regionCounts=new Map();
+  for(let gy=0;gy<n;gy++)for(let gx=0;gx<n;gx++){const i=gy*n+gx,t=winner[i];if(!t||!winnerCount[i])continue;ctx.fillStyle=termColor(t,alpha);ctx.fillRect(gx*cw,gy*ch,Math.ceil(cw)+.5,Math.ceil(ch)+.5);regionCounts.set(t,(regionCounts.get(t)||0)+1);}
+  const top=[...regionCounts.entries()].sort((a,b)=>b[1]-a[1]).slice(0,12);
+  $("mapLegend").innerHTML=top.map(([t,c])=>`<span class="legend-item"><span class="legend-swatch" style="background:${termColor(t,.9)}"></span>${esc(displayTerm(t))} · ${pct(c,n*n,0)}</span>`).join("");
+}
+function redrawAll(){drawDominantMap();if(state.point)drawFrame(state.point.x,state.point.y);else drawFrame();}
+
+function boxSvgForTerm(row,term){
+  return row.detections.filter(d=>d.term===term).map(d=>{
+    const b=d.box,label=displayTerm(term);
+    return `<rect x="${b.x1}" y="${b.y1}" width="${b.x2-b.x1}" height="${b.y2-b.y1}"><title>${esc(label)}${Number.isFinite(d.confidence)?` (${d.confidence.toFixed(2)})`:""}${d.rationale?` — ${esc(d.rationale)}`:""}</title></rect><text x="${b.x1+7}" y="${Math.min(b.y1+25,990)}">${esc(label)}</text>`;
+  }).join("");
+}
+function closeActivePreview(){
+  if(state.activePreviewId){
+    const el=$(`preview-${state.activePreviewId}`);if(el){el.innerHTML="";el.style.display="none";}
+    state.activePreviewId=null;
+  }
+}
+function showPreview(rowIndex,term,previewId,button){
+  if(state.activePreviewId===previewId){closeActivePreview();button.textContent="image + box";return;}
+  closeActivePreview();
+  const row=state.rows[rowIndex],el=$(`preview-${previewId}`);if(!row||!el||!row.imageUrl)return;
+  const svg=boxSvgForTerm(row,term);
+  el.innerHTML=`<div class="image-wrap"><img src="${escAttr(row.imageUrl)}" alt="${escAttr(row.title||row.uid)}" loading="lazy"><svg viewBox="0 0 1000 1000" preserveAspectRatio="none">${svg}</svg></div><div class="preview-note">Only bounding box(es) for ${esc(displayTerm(term))} are drawn. The image was requested only after you clicked this button. <a href="${escAttr(row.imageUrl)}" target="_blank" rel="noopener">open image ↗</a></div>`;
+  el.style.display="block";state.activePreviewId=previewId;button.textContent="hide image";
+}
+
+async function loadWorkbook(file){
+  $("status").className="status";$("status").textContent=`Reading ${file.name}…`;
+  try{
+    const buffer=await file.arrayBuffer(),workbook=XLSX.read(buffer,{type:"array",cellDates:true});
+    if(!workbook.SheetNames.length)throw new Error("The workbook contains no sheets.");
+    const sheet=workbook.Sheets[workbook.SheetNames[0]],rawRows=XLSX.utils.sheet_to_json(sheet,{defval:"",raw:true});
+    ingestRows(rawRows,file.name);
+  }catch(err){
+    console.error(err);state.rows=[];state.validRows=[];state.loaded=false;
+    $("status").className="status bad";$("status").textContent=`Could not load file: ${err.message}`;
+    $("rightBody").innerHTML=`<div class="empty">${esc(err.message)}</div>`;
+  }
+}
+// Shared by the file picker and the Data Hub autoload. `file` only needs a name.
+function ingestRows(rawRows,fileName){
+  const file={name:fileName};
+  try{
+    if(!rawRows.length)throw new Error("The dataset contains no data rows.");
+    const present=new Set(Object.keys(rawRows[0]||{}));
+    if(!present.has("gem_controlled_objects")&&!present.has("gem_other_objects"))throw new Error("Could not find gem_controlled_objects or gem_other_objects in the first worksheet.");
+    const rows=rawRows.map(normaliseRow),validRows=rows.filter(r=>r.detections.length>0),validDetections=validRows.reduce((n,r)=>n+r.detections.length,0);
+    if(!validDetections)throw new Error("The workbook loaded, but no valid box_2d detections were found.");
+    Object.assign(state,{rows,validRows,loaded:true,fileName:file.name,point:null,frozen:false,selectedTerm:null,map:null,mapCacheKey:"",activePreviewId:null});
+    $("photoShell").classList.remove("frozen");
+    $("status").className="status good";$("status").textContent=`${file.name} · ${rawRows.length.toLocaleString()} rows · ${validRows.length.toLocaleString()} rows with valid boxes · ${validDetections.toLocaleString()} valid detections`;
+    $("rightBody").innerHTML=`<div class="empty">File loaded successfully.<br>Move the mouse over the photograph template to inspect a point.</div>`;
+    $("mapProgress").textContent="The colour map is calculated only when switched on.";
+    $("mapLegend").innerHTML="";redrawAll();
+    if($("dominantMapToggle").checked)setTimeout(buildDominantMap,0);
+  }catch(err){
+    console.error(err);state.rows=[];state.validRows=[];state.loaded=false;
+    $("status").className="status bad";$("status").textContent=`Could not load file: ${err.message}`;
+    $("rightBody").innerHTML=`<div class="empty">${esc(err.message)}</div>`;
+  }
+}
+
+HubData.autoload("visual_table",rows=>ingestRows(rows,"Data Hub · visual elements"),{label:"visual-element data"});
+$("fileInput").addEventListener("change",e=>{const file=e.target.files&&e.target.files[0];if(file)loadWorkbook(file);});
+$("photoShell").addEventListener("pointermove",e=>{if(state.frozen)return;const p=pointFromEvent(e);renderPoint(p.x,p.y);});
+$("photoShell").addEventListener("pointerleave",()=>{if(state.frozen||!state.point)return;$("coordReadout").textContent="x — · y —";$("pointLabel").textContent=`last: x ${Math.round(state.point.x)} · y ${Math.round(state.point.y)}`;drawFrame();});
+$("photoShell").addEventListener("click",e=>{
+  if(!state.loaded)return;
+  if(state.frozen){state.frozen=false;$("photoShell").classList.remove("frozen");const p=pointFromEvent(e);renderPoint(p.x,p.y);}
+  else{const p=pointFromEvent(e);state.frozen=true;$("photoShell").classList.add("frozen");renderPoint(p.x,p.y);}
+});
+$("rankMode").addEventListener("change",()=>{state.map=null;state.mapCacheKey="";if(state.point)renderPoint(state.point.x,state.point.y);if($("dominantMapToggle").checked)setTimeout(buildDominantMap,0);});
+$("dominantMapToggle").addEventListener("change",()=>{if($("dominantMapToggle").checked){if(state.loaded)setTimeout(buildDominantMap,0);else $("mapProgress").textContent="Load a dataset first.";}else{$("mapProgress").textContent="Dominant-element colour map is off.";drawDominantMap();}});
+$("mapResolution").addEventListener("change",()=>{state.map=null;state.mapCacheKey="";if($("dominantMapToggle").checked&&state.loaded)setTimeout(buildDominantMap,0);});
+$("mapOpacity").addEventListener("input",drawDominantMap);
+window.addEventListener("resize",redrawAll);
+
+document.addEventListener("click",e=>{
+  const card=e.target.closest("[data-term-card]");
+  if(card&&!e.target.closest("a,button")){state.selectedTerm=card.getAttribute("data-term-card");if(state.point)renderPoint(state.point.x,state.point.y);return;}
+  const btn=e.target.closest("[data-preview-row]");
+  if(btn){e.preventDefault();e.stopPropagation();showPreview(Number(btn.getAttribute("data-preview-row")),btn.getAttribute("data-preview-term"),btn.getAttribute("data-preview-id"),btn);}
+});
+
+redrawAll();
+})();
+</script>
+</body>
+</html>

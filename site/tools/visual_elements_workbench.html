@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visual Elements Workbench</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f6f5f2; --surface:#fcfcfb; --surface-2:#f0efec; --surface-3:#e6e5e0;
+  --border:#dedcd5; --border-strong:#c9c7bf;
+  --text:#1a1a19; --text-2:#52514e; --text-3:#76756f;
+  --accent:#2a78d6; --accent-soft:#e3eefb; --accent-ink:#1c5cab;
+  --grpA:#2a78d6; --grpB:#eb6834; --grpA-soft:#dbe8f9; --grpB-soft:#fbe3d8;
+  --good:#0ca30c; --warn:#b77f00; --bad:#d03b3b;
+  --seq-0:#f3f7fd; --seq-1:#cde2fb; --seq-2:#9ec5f4; --seq-3:#6da7ec; --seq-4:#3987e5; --seq-5:#256abf; --seq-6:#184f95; --seq-7:#0d366b;
+  --shadow:0 1px 2px rgba(0,0,0,.05),0 4px 16px rgba(0,0,0,.06);
+  --radius:10px;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#121211; --surface:#1a1a19; --surface-2:#232321; --surface-3:#2e2e2b;
+    --border:#34342f; --border-strong:#46463f;
+    --text:#f2f1ec; --text-2:#c3c2b7; --text-3:#9a998f;
+    --accent:#5598e7; --accent-soft:#1d2d44; --accent-ink:#86b6ef;
+    --grpA:#3987e5; --grpB:#d95926; --grpA-soft:#1d2d44; --grpB-soft:#3d2418;
+    --good:#2fbf2f; --warn:#fab219; --bad:#e66767;
+    --seq-0:#1e2530; --seq-1:#104281; --seq-2:#184f95; --seq-3:#1c5cab; --seq-4:#2a78d6; --seq-5:#5598e7; --seq-6:#86b6ef; --seq-7:#cde2fb;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#121211; --surface:#1a1a19; --surface-2:#232321; --surface-3:#2e2e2b;
+  --border:#34342f; --border-strong:#46463f;
+  --text:#f2f1ec; --text-2:#c3c2b7; --text-3:#9a998f;
+  --accent:#5598e7; --accent-soft:#1d2d44; --accent-ink:#86b6ef;
+  --grpA:#3987e5; --grpB:#d95926; --grpA-soft:#1d2d44; --grpB-soft:#3d2418;
+  --good:#2fbf2f; --warn:#fab219; --bad:#e66767;
+  --seq-0:#1e2530; --seq-1:#104281; --seq-2:#184f95; --seq-3:#1c5cab; --seq-4:#2a78d6; --seq-5:#5598e7; --seq-6:#86b6ef; --seq-7:#cde2fb;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5}
+button,input,select{font:inherit;color:inherit}
+a{color:var(--accent-ink)}
+.mono{font-family:var(--mono);font-size:12px}
+.muted{color:var(--text-3)} .dim{color:var(--text-2)}
+.hidden{display:none!important}
+
+/* ── top bar ─────────────────────────────── */
+.topbar{position:sticky;top:0;z-index:30;background:var(--surface);border-bottom:1px solid var(--border)}
+.topbar-inner{max-width:1400px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{font-weight:650;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.brand small{font-weight:400;color:var(--text-3);margin-left:6px}
+.dataset-pill{max-width:340px;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto;font-size:12px;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:3px 10px;white-space:nowrap}
+.spacer{flex:1}
+@media (max-width:640px){.topbar-inner,.filterbar-inner,.tabs,main{padding-left:16px;padding-right:16px}.brand{white-space:normal;font-size:14px}.dataset-pill{max-width:100%}.search-wrap{flex-basis:100%;max-width:none}.fselect{flex:1 1 40%;max-width:none}}
+.btn{border:1px solid var(--border-strong);background:var(--surface);border-radius:8px;padding:6px 12px;cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.small{padding:3px 9px;font-size:12px}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.ghost:hover{background:var(--surface-2)}
+.btn:disabled{opacity:.5;cursor:default}
+.seg{display:inline-flex;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:5px 11px;cursor:pointer;font-size:13px}
+.seg button+button{border-left:1px solid var(--border-strong)}
+.seg button.on{background:var(--accent-soft);color:var(--accent-ink);font-weight:600}
+
+/* ── filter bar ──────────────────────────── */
+.filterbar{border-top:1px solid var(--border);background:var(--surface)}
+.filterbar-inner{max-width:1400px;margin:0 auto;padding:8px 20px;display:flex;flex-direction:column;gap:6px}
+.frow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.search-wrap{position:relative;flex:1 1 280px;max-width:420px}
+.search-wrap input{width:100%;border:1px solid var(--border-strong);background:var(--surface);border-radius:8px;padding:6px 10px 6px 30px}
+.search-wrap::before{content:"⌕";position:absolute;left:10px;top:4px;color:var(--text-3);font-size:16px}
+.suggest{position:absolute;left:0;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;box-shadow:var(--shadow);max-height:340px;overflow:auto;z-index:40}
+.suggest .sg-h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);padding:6px 10px 2px}
+.suggest .sg-i{padding:5px 10px;cursor:pointer;display:flex;justify-content:space-between;gap:10px}
+.suggest .sg-i:hover,.suggest .sg-i.act{background:var(--accent-soft)}
+.fselect{border:1px solid var(--border-strong);background:var(--surface);border-radius:8px;padding:5px 8px;max-width:180px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 4px 2px 10px;font-size:12.5px;background:var(--accent-soft);color:var(--accent-ink);border:1px solid transparent}
+.chip b{font-weight:600}
+.chip .x{border:0;background:transparent;cursor:pointer;border-radius:50%;width:18px;height:18px;line-height:16px;padding:0;color:inherit}
+.chip .x:hover{background:rgba(0,0,0,.1)}
+.chip.B{background:var(--grpB-soft);color:var(--text)}
+.lane{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:3px 6px;border-radius:8px;border:1px dashed transparent;cursor:pointer}
+.lane.active{border-color:var(--border-strong);background:var(--surface-2)}
+.lane-tag{font-weight:700;font-size:12px;border-radius:5px;padding:1px 7px;color:#fff}
+.lane-tag.A{background:var(--grpA)} .lane-tag.B{background:var(--grpB)}
+.lane .count{font-size:12px;color:var(--text-2)}
+.empty-chip{font-size:12px;color:var(--text-3)}
+
+/* ── tabs ────────────────────────────────── */
+.tabs{max-width:1400px;margin:0 auto;padding:0 20px;display:flex;gap:2px;overflow-x:auto;border-top:1px solid var(--border)}
+.tab{border:0;background:transparent;padding:9px 14px;cursor:pointer;color:var(--text-2);border-bottom:2px solid transparent;white-space:nowrap}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+.tab .n{font-size:11px;color:var(--text-3);margin-left:4px}
+
+/* ── layout ──────────────────────────────── */
+main{max-width:1400px;margin:0 auto;padding:18px 20px 80px}
+.view-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 12px;flex-wrap:wrap}
+.view-head h1{font-size:20px;margin:0;font-weight:650}
+.view-head p{margin:2px 0 0;color:var(--text-2);max-width:760px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g-2-1{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
+@media (max-width:980px){.g2,.g3,.g-2-1{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;min-width:0}
+.card h2{font-size:14.5px;margin:0 0 2px;font-weight:620}
+.card .sub{font-size:12.5px;color:var(--text-3);margin:0 0 10px}
+.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px}
+.card-head .ctrls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.takeaway{font-size:13px;color:var(--text-2);background:var(--surface-2);border-radius:7px;padding:6px 10px;margin:8px 0 0}
+details.more{margin-top:14px;border-top:1px solid var(--border);padding-top:8px}
+details.more>summary{cursor:pointer;color:var(--text-2);font-size:13px;font-weight:550;list-style:none}
+details.more>summary::before{content:"▸ ";color:var(--text-3)}
+details.more[open]>summary::before{content:"▾ "}
+details.more>summary::-webkit-details-marker{display:none}
+.section-title{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin:26px 0 8px;font-weight:600}
+
+/* KPI tiles */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px}
+.kpi .l{font-size:12px;color:var(--text-2)}
+.kpi .v{font-size:22px;font-weight:650;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:12px;color:var(--text-3)}
+.kpi .v .b{color:var(--grpB)} .kpi .v .a{color:var(--grpA)}
+.kpi.clickable{cursor:pointer} .kpi.clickable:hover{border-color:var(--border-strong)}
+
+/* bar list */
+.bars{display:flex;flex-direction:column;gap:1px}
+.bar-row{display:grid;grid-template-columns:minmax(90px,38%) 1fr auto;align-items:center;gap:8px;padding:2px 4px;border-radius:5px;cursor:pointer;font-size:13px}
+.bar-row:hover{background:var(--surface-2)}
+.bar-row .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-row .track{position:relative;height:16px}
+.bar-row .fill{position:absolute;left:0;top:3px;height:10px;border-radius:0 4px 4px 0;background:var(--grpA);min-width:2px}
+.bar-row .fill.B{top:9px;height:6px;background:var(--grpB)}
+.bar-row.paired .fill.A{top:1px;height:6px}
+.bar-row .val{font-variant-numeric:tabular-nums;color:var(--text-2);font-size:12px;min-width:48px;text-align:right}
+.bar-row .fill.muted{background:var(--border-strong)}
+.div-row{display:grid;grid-template-columns:minmax(90px,30%) 1fr auto;gap:8px;align-items:center;padding:2px 4px;border-radius:5px;cursor:pointer;font-size:13px}
+.div-row:hover{background:var(--surface-2)}
+.div-track{position:relative;height:16px}
+.div-track::before{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:1px solid var(--border-strong)}
+.div-fill{position:absolute;top:3px;height:10px}
+.div-fill.A{background:var(--grpA);border-radius:4px 0 0 4px}
+.div-fill.B{background:var(--grpB);border-radius:0 4px 4px 0}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--text-2);margin:4px 0 8px;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+
+/* column chart */
+.cols{display:flex;align-items:flex-end;gap:3px;height:150px;padding-top:6px;border-bottom:1px solid var(--border-strong)}
+.col{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:1px;height:100%;cursor:pointer;border-radius:4px 4px 0 0;position:relative}
+.col:hover{background:var(--surface-2)}
+.col .cf{width:70%;max-width:34px;background:var(--grpA);border-radius:4px 4px 0 0;min-height:1px}
+.col .cf.B{background:var(--grpB)}
+.col.paired .cf{width:38%}
+.col-labels{display:flex;gap:3px;font-size:11px;color:var(--text-3)}
+.col-labels span{flex:1;text-align:center;overflow:hidden;white-space:nowrap}
+
+/* tables */
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+table.t th{text-align:left;font-weight:600;color:var(--text-2);font-size:12px;border-bottom:1px solid var(--border-strong);padding:5px 8px;position:sticky;top:0;background:var(--surface);cursor:pointer;white-space:nowrap}
+table.t td{padding:4px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+table.t td.num,table.t th.num{text-align:right;font-variant-numeric:tabular-nums}
+table.t tr.click{cursor:pointer} table.t tr.click:hover td{background:var(--surface-2)}
+.tscroll{max-height:420px;overflow:auto;border:1px solid var(--border);border-radius:8px}
+
+/* heatmap matrix */
+.matrix{overflow:auto;max-height:560px}
+.matrix table{border-collapse:separate;border-spacing:2px;font-size:12px}
+.matrix th{font-weight:500;color:var(--text-2);padding:2px 6px;white-space:nowrap;text-align:right;position:sticky;left:0;background:var(--surface);z-index:1}
+.matrix thead th{position:sticky;top:0;text-align:left;writing-mode:vertical-rl;transform:rotate(180deg);height:120px;vertical-align:bottom;z-index:2}
+.matrix thead th:first-child{writing-mode:horizontal-tb;transform:none;left:0;z-index:3}
+.matrix td{width:34px;min-width:34px;height:24px;text-align:center;border-radius:3px;cursor:pointer;font-variant-numeric:tabular-nums;font-size:11px}
+.matrix td:hover{outline:2px solid var(--text)}
+.scale{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-3);margin-top:6px}
+.scale .ramp{display:flex;height:8px;width:140px;border-radius:3px;overflow:hidden}
+.scale .ramp i{flex:1}
+
+/* term chips in records */
+.tchips{display:flex;flex-wrap:wrap;gap:4px}
+.tchip{font-size:11.5px;border-radius:5px;padding:1px 7px;background:var(--surface-2);border:1px solid var(--border);cursor:pointer;white-space:nowrap}
+.tchip:hover{border-color:var(--accent)}
+.tchip.other{border-style:dashed}
+.tchip.hit{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink)}
+.badge{display:inline-block;font-size:11px;border-radius:5px;padding:0 6px;border:1px solid var(--border-strong);color:var(--text-2);white-space:nowrap}
+.badge.warn{border-color:var(--warn);color:var(--warn)} .badge.bad{border-color:var(--bad);color:var(--bad)} .badge.good{border-color:var(--good);color:var(--good)}
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+
+/* records grid */
+.rec-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.rec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.rec{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;display:flex;flex-direction:column}
+.rec:hover{border-color:var(--border-strong);box-shadow:var(--shadow)}
+.rec .thumb{aspect-ratio:4/3;background:var(--surface-2);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.rec .thumb img{width:100%;height:100%;object-fit:cover}
+.rec .body{padding:8px 10px;display:flex;flex-direction:column;gap:4px}
+.rec .ttl{font-size:13px;font-weight:550;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rec .meta{font-size:12px;color:var(--text-3)}
+.rec-list .rec{flex-direction:row}
+.rec-list{display:flex;flex-direction:column;gap:8px}
+.rec-list .rec .thumb{width:120px;flex:none;aspect-ratio:auto}
+.strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}
+.strip .s-i{aspect-ratio:1;background:var(--surface-2);border-radius:6px;overflow:hidden;cursor:pointer;border:1px solid var(--border);position:relative}
+.strip .s-i img{width:100%;height:100%;object-fit:cover}
+.strip .s-i span{position:absolute;left:0;right:0;bottom:0;font-size:10.5px;background:rgba(0,0,0,.55);color:#fff;padding:1px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.thumb-slot{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.thumb-slot img{width:100%;height:100%;object-fit:cover}
+.thumb-load{border:1px dashed var(--border-strong);background:var(--surface);color:var(--text-2);border-radius:6px;padding:4px 8px;font-size:11.5px;cursor:pointer;line-height:1.25;max-width:88%}
+.thumb-load:hover{border-color:var(--accent);color:var(--accent-ink);background:var(--accent-soft)}
+.thumb-load::before{content:"🖼 ";}
+.thumb-none{font-size:11px;color:var(--text-3)}
+/* drawer */
+.drawer-back{position:fixed;inset:0;background:rgba(0,0,0,.25);z-index:50}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(640px,100vw);background:var(--surface);border-left:1px solid var(--border);box-shadow:var(--shadow);z-index:51;display:flex;flex-direction:column}
+.drawer-head{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:flex-start}
+.drawer-head .kind{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3)}
+.drawer-head h2{margin:0;font-size:18px;font-weight:650;word-break:break-word}
+.drawer-head .acts{margin-left:auto;display:flex;gap:6px;flex:none}
+.drawer-crumbs{font-size:12px;color:var(--text-3);padding:6px 16px 0;display:flex;gap:4px;flex-wrap:wrap}
+.drawer-crumbs a{cursor:pointer;text-decoration:none}
+.drawer-body{padding:12px 16px 40px;overflow:auto;flex:1}
+.drawer-body h3{font-size:13px;margin:18px 0 6px;font-weight:620}
+.drawer-body .kpis{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+.imgbox{position:relative;background:var(--surface-2);border-radius:8px;overflow:hidden;line-height:0}
+.imgbox img{width:100%;height:auto;display:block}
+.imgbox svg{position:absolute;inset:0;width:100%;height:100%}
+.imgbox .noimg{line-height:1.5;padding:40px;text-align:center;color:var(--text-3)}
+.det-list{font-size:13px}
+.det-list .d{display:grid;grid-template-columns:auto 1fr auto;gap:8px;padding:4px 6px;border-radius:5px;align-items:baseline}
+.det-list .d:hover,.det-list .d.hl{background:var(--accent-soft)}
+.det-list .d .r{grid-column:2/4;font-size:12px;color:var(--text-3)}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:3px 14px;font-size:13px}
+.kv dt{color:var(--text-3)} .kv dd{margin:0;word-break:break-word}
+pre.trans{white-space:pre-wrap;background:var(--surface-2);border-radius:8px;padding:10px;font-family:var(--mono);font-size:12px;margin:0;max-height:260px;overflow:auto}
+pre.trans mark{background:var(--accent-soft);color:var(--accent-ink);border-radius:3px}
+
+/* spatial */
+.heat-wrap{display:flex;gap:14px;flex-wrap:wrap}
+.heat{display:flex;flex-direction:column;gap:4px}
+.heat canvas{width:220px;height:220px;border-radius:6px;border:1px solid var(--border);background:var(--surface-2)}
+.heat .cap{font-size:12px;color:var(--text-2)}
+.regions{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;width:180px}
+.regions div{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:12px;border-radius:3px;font-variant-numeric:tabular-nums}
+
+/* svg charts */
+svg.chart{width:100%;height:auto;display:block;overflow:visible}
+svg.chart text{fill:var(--text-3);font-size:11px;font-family:var(--sans)}
+svg.chart .grid line{stroke:var(--border)}
+svg.chart .axis line{stroke:var(--border-strong)}
+svg.chart .hit{fill:transparent;cursor:pointer}
+
+/* load screen */
+.load{max-width:880px;margin:40px auto;padding:0 20px}
+.load h1{font-size:26px;margin:0 0 6px}
+.load p.lead{color:var(--text-2);margin:0 0 22px}
+.drops{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:700px){.drops{grid-template-columns:1fr}}
+.drop{border:1.5px dashed var(--border-strong);border-radius:12px;padding:26px 18px;text-align:center;cursor:pointer;background:var(--surface)}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop .t{font-weight:600} .drop .d{font-size:13px;color:var(--text-3)}
+.drop.ok{border-style:solid;border-color:var(--good)}
+.load-steps{margin-top:22px;font-size:13px;color:var(--text-2)}
+.load-steps li{margin:3px 0}
+
+/* modal */
+.modal-back{position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+.modal{background:var(--surface);border-radius:12px;box-shadow:var(--shadow);width:min(860px,100%);border:1px solid var(--border)}
+.modal-head{display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border)}
+.modal-head h2{margin:0;font-size:17px}
+.modal-body{padding:14px 16px}
+.modal-foot{padding:10px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+.form-row{display:flex;gap:10px;align-items:center;margin:8px 0;flex-wrap:wrap}
+.form-row label{min-width:210px;color:var(--text-2)}
+.form-row input[type=number]{width:80px}
+.form-row input,.form-row select{border:1px solid var(--border-strong);background:var(--surface);border-radius:7px;padding:4px 8px}
+.mgroup{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:10px;padding:6px 0;border-bottom:1px solid var(--border);align-items:start}
+.mgroup input{width:100%;border:1px solid var(--border-strong);background:var(--surface);border-radius:7px;padding:4px 8px}
+.mgroup .vars{font-size:12px;color:var(--text-3)}
+
+/* tooltip */
+#tip{position:fixed;z-index:80;pointer-events:none;background:var(--text);color:var(--bg);font-size:12px;padding:5px 8px;border-radius:6px;max-width:320px;box-shadow:var(--shadow);display:none;line-height:1.4}
+.notice{font-size:12.5px;color:var(--text-2);background:var(--surface-2);border-left:3px solid var(--warn);padding:6px 10px;border-radius:0 6px 6px 0;margin:6px 0}
+.small-n{opacity:.55}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 14px;border-radius:8px;z-index:90;font-size:13px}
+.inline-input{border:1px solid var(--border-strong);background:var(--surface);border-radius:7px;padding:4px 8px}
+.pager{display:flex;justify-content:center;margin-top:14px}
+</style>
+<script src="../assets/hub-data.js"></script>
+</head>
+<body>
+<div id="tip"></div>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">Daily Herald · Visual Elements Workbench<small>v13</small></div>
+    <span class="dataset-pill hidden" id="datasetPill"></span>
+    <div class="spacer"></div>
+    <div class="seg hidden" id="modeSeg" title="Compare two subgroups of the data side by side">
+      <button data-mode="single" class="on">Single view</button>
+      <button data-mode="compare">Compare groups</button>
+    </div>
+    <button class="btn hidden" id="prepareBtn" title="Maker-name standardisation and data options">Prepare data</button>
+    <button class="btn hidden" id="loadBtn">Load files</button>
+    <button class="btn ghost" id="themeBtn" title="Toggle light/dark">◐</button>
+  </div>
+  <div class="filterbar hidden" id="filterbar">
+    <div class="filterbar-inner">
+      <div class="frow">
+        <div class="search-wrap">
+          <input id="searchInput" type="text" placeholder="Find a term, detail, maker, folder or text in transcriptions…" autocomplete="off">
+          <div class="suggest hidden" id="suggest"></div>
+        </div>
+        <select class="fselect" id="fDecade"><option value="">Decade</option></select>
+        <select class="fselect" id="fFolder"><option value="">Folder</option></select>
+        <select class="fselect" id="fOrient"><option value="">Orientation</option></select>
+        <select class="fselect" id="fValid"><option value="">Validation</option></select>
+        <button class="btn small ghost" id="clearFilters">Clear</button>
+      </div>
+      <div id="lanes"></div>
+    </div>
+  </div>
+  <nav class="tabs hidden" id="tabs"></nav>
+</header>
+
+<main id="main"></main>
+
+<input type="file" id="fileA" accept=".xlsx,.xls,.csv" class="hidden">
+<input type="file" id="fileB" accept=".xlsx,.xls,.csv" class="hidden">
+
+<script>
+(function(){
+"use strict";
+  // ── Extractor v6.2 / vocabulary v2 taxonomy ──────────────────────────
+  const EXPECTED_VOCABULARY_VERSION = "v2";
+  const CONTROLLED_VOCABULARY = ["aircraft", "airship_or_balloon", "helicopter", "parachute", "rocket_or_missile", "spacecraft", "person", "man", "woman", "baby", "child", "group_of_people", "crowd", "athlete_or_sportsperson", "nurse", "police_officer", "soldier", "spectator", "animal", "bird", "cat", "chicken_or_poultry", "cow_or_cattle", "dog", "horse", "pig", "pigeon", "sheep", "vehicle", "ambulance", "bicycle", "bus", "car", "cart_or_wagon", "fire_engine", "lorry_or_truck", "motorcycle", "pram_or_pushchair", "tractor", "trailer", "tram", "van", "wheelbarrow", "wheelchair", "railway_vehicle", "locomotive", "goods_wagon", "railway_carriage", "boat", "sailing_boat", "ship", "railway_building", "railway_platform", "railway_signal", "railway_station", "railway_track", "bollard", "bus_stop", "pavement_or_sidewalk", "post_or_pole", "postbox", "road", "road_sign", "street_lamp", "traffic_light", "building", "castle", "palace", "church_or_chapel", "cottage", "factory", "hospital", "house", "lighthouse", "school", "tower", "warehouse", "bridge", "chimney", "door", "fence", "gate", "pier", "railings", "scaffold", "staircase", "wall", "window", "machine", "boiler", "conveyor", "cooling_tower", "electric_motor_or_generator", "engine", "furnace", "pump", "sewing_machine", "steam_engine", "textile_machine", "workshop_machine", "battery", "circuit_board", "control_panel", "electronic_component", "fuse_or_fuse_box", "gauge_or_dial", "mechanical_part", "pipe", "plug_or_socket", "switch", "tube", "valve_or_tap", "wheel", "wire_or_cable", "hand_tool", "pickaxe", "shovel_or_spade", "toolbox", "writing_implement", "farm_equipment", "plough", "laboratory_equipment", "microscope", "telescope", "compass", "surveying_instrument", "thermometer", "weather_instrument", "weighing_scale", "medical_furniture", "medical_instrument", "medical_machine", "surgical_instrument", "syringe", "weapon", "firearm", "military_tank", "bed", "bench", "cabinet_or_cupboard", "chair", "display_case", "shelf_or_rack", "table", "workbench", "bag_or_sack_or_case", "barrel_or_drum", "basket", "bottle", "bowl_or_dish", "box_or_crate", "bucket", "can_or_tin", "jar", "jug", "packaging", "storage_tank", "vase_or_pottery", "domestic_appliance", "bath", "sink", "cooking_pot", "cutlery", "kettle_or_teapot", "refrigerator", "stove_or_cooker", "candle", "lamp", "light_bulb", "oil_lamp_or_lantern", "flashlight", "antenna", "camera", "computer", "loudspeaker", "microphone", "radio", "screen_or_monitor", "telegraph", "telephone", "telephone_box", "television", "typewriter", "clothing", "apron_garment", "boot_or_shoe", "coat_or_jacket", "dress", "glove", "goggles_or_eye_protection", "gown_or_robe", "handbag", "hat_or_cap", "headscarf", "helmet", "jewellery", "life_jacket", "military_uniform", "protective_clothing", "shirt_or_vest", "skirt", "spectacles", "swimwear", "tie", "trousers", "uniform", "umbrella", "walking_stick", "ball", "cricket_bat", "football_ball", "game", "sports_equipment", "swimming_pool", "doll_or_figurine", "medal_or_medallion", "monument_or_statue", "sculpture", "toy", "musical_instrument", "document", "book", "calendar", "caption", "envelope", "handwritten_annotation", "label_or_sticker", "letter", "map_or_chart", "newspaper_or_magazine", "postcard", "poster", "printed_image", "sign", "ticket_or_card", "badge", "coin", "flag_or_banner", "medal_or_medallion", "placard", "postage_stamp", "stamp_or_mark", "diagram_or_plan", "drawing", "montage_or_composite", "painting", "picture_frame", "retouching", "beach", "bush", "clouds", "field", "flower", "garden", "hedge", "lake_or_pond", "park", "plant", "river", "sea", "sky", "stone_or_mineral", "tree", "water", "crop_mark", "fire", "smoke", "spray", "dock_or_quay", "fountain", "lifting_crane", "rope", "chain", "hose", "tent", "binoculars", "bell", "calculator", "clock", "mirror", "podium_or_lectern", "smoking_item", "textile", "tear_or_damage"];
+  const CONTROLLED_SET = new Set(CONTROLLED_VOCABULARY);
+  const TERMS_REQUIRING_DETAIL = new Set(["animal", "athlete_or_sportsperson", "building", "clothing", "document", "domestic_appliance", "electronic_component", "farm_equipment", "hand_tool", "laboratory_equipment", "machine", "mechanical_part", "medical_instrument", "medical_machine", "musical_instrument", "protective_clothing", "railway_vehicle", "sports_equipment", "uniform", "vehicle", "weapon", "workshop_machine"]);
+  const TERM_PARENTS = {"aircraft": "vehicle", "airship_or_balloon": "aircraft", "ambulance": "vehicle", "apron_garment": "clothing", "athlete_or_sportsperson": "person", "baby": "person", "bicycle": "vehicle", "bird": "animal", "boat": "vehicle", "boiler": "machine", "book": "document", "boot_or_shoe": "clothing", "bus": "vehicle", "calendar": "document", "car": "vehicle", "cart_or_wagon": "vehicle", "castle": "building", "cat": "animal", "chicken_or_poultry": "animal", "child": "person", "church_or_chapel": "building", "coat_or_jacket": "clothing", "conveyor": "machine", "cooling_tower": "machine", "cottage": "building", "cow_or_cattle": "animal", "dog": "animal", "dress": "clothing", "electric_motor_or_generator": "machine", "engine": "machine", "envelope": "document", "factory": "building", "fire_engine": "vehicle", "firearm": "weapon", "furnace": "machine", "glove": "clothing", "goods_wagon": "railway_vehicle", "gown_or_robe": "clothing", "hat_or_cap": "clothing", "headscarf": "clothing", "helicopter": "aircraft", "horse": "animal", "hospital": "building", "house": "building", "letter": "document", "life_jacket": "protective_clothing", "lighthouse": "building", "locomotive": "railway_vehicle", "lorry_or_truck": "vehicle", "man": "person", "map_or_chart": "document", "medical_machine": "machine", "microscope": "laboratory_equipment", "military_tank": "weapon", "military_uniform": "uniform", "motorcycle": "vehicle", "newspaper_or_magazine": "document", "nurse": "person", "palace": "building", "pig": "animal", "pigeon": "bird", "police_officer": "person", "postcard": "document", "poster": "document", "pram_or_pushchair": "vehicle", "protective_clothing": "clothing", "pump": "machine", "railway_building": "building", "railway_carriage": "railway_vehicle", "railway_station": "building", "railway_vehicle": "vehicle", "sailing_boat": "boat", "school": "building", "sewing_machine": "machine", "sheep": "animal", "ship": "vehicle", "shirt_or_vest": "clothing", "skirt": "clothing", "soldier": "person", "spectator": "person", "steam_engine": "machine", "surgical_instrument": "medical_instrument", "swimwear": "clothing", "syringe": "medical_instrument", "textile_machine": "machine", "ticket_or_card": "document", "tie": "clothing", "tower": "building", "tractor": "vehicle", "trailer": "vehicle", "tram": "vehicle", "trousers": "clothing", "uniform": "clothing", "van": "vehicle", "warehouse": "building", "wheelbarrow": "vehicle", "wheelchair": "vehicle", "woman": "person", "workshop_machine": "machine"};
+  const AGGREGATE_OR_REGION_TERMS = new Set(["beach", "clouds", "crop_mark", "crowd", "field", "garden", "group_of_people", "lake_or_pond", "park", "pavement_or_sidewalk", "railings", "river", "road", "sea", "sky", "smoke", "spray", "water"]);
+  const VOCABULARY_ALIASES = {"apron": "apron_garment", "boat_or_ship": "boat", "caption_label": "caption", "crane": "lifting_crane", "football": "football_ball", "laboratory_apparatus": "laboratory_equipment", "laboratory_instrument": "laboratory_equipment", "print": "printed_image", "torch": "flashlight", "vehicle_other": "vehicle"};
+  const FALLBACK_TERMS = new Set(Object.values(TERM_PARENTS));
+
+// ════════════════════════════════════════════════════════════════════
+//  Helpers
+// ════════════════════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const enc = encodeURIComponent, dec = decodeURIComponent;
+const A = (...parts) => parts.map(p => enc(String(p))).join("|");           // data-act value
+const fmtN = n => Number.isFinite(n) ? Math.round(n).toLocaleString("en-GB") : "–";
+const pct = (x, d = 1) => Number.isFinite(x) ? (x * 100).toFixed(d) + "%" : "–";
+const fx = (x, d = 2) => Number.isFinite(x) ? x.toFixed(d) : "–";
+const usd = x => Number.isFinite(x) ? "$" + (x >= 100 ? fmtN(x) : x >= 1 ? x.toFixed(2) : x.toFixed(4)) : "–";
+const pretty = t => String(t || "").replace(/_/g, " ");
+const sum = a => a.reduce((s, v) => s + v, 0);
+const mean = a => a.length ? sum(a) / a.length : NaN;
+function quantile(arr, p) { if (!arr.length) return NaN; const s = [...arr].sort((a, b) => a - b); const pos = (s.length - 1) * p, lo = Math.floor(pos), hi = Math.ceil(pos); return s[lo] + (s[hi] - s[lo]) * (pos - lo); }
+const median = a => quantile(a, .5);
+function sd(a) { if (a.length < 2) return 0; const m = mean(a); return Math.sqrt(sum(a.map(v => (v - m) ** 2)) / (a.length - 1)); }
+function pearson(xs, ys) { const n = xs.length; if (n < 3) return NaN; const mx = mean(xs), my = mean(ys); let nu = 0, dx = 0, dy = 0; for (let i = 0; i < n; i++) { const a = xs[i] - mx, b = ys[i] - my; nu += a * b; dx += a * a; dy += b * b; } return dx && dy ? nu / Math.sqrt(dx * dy) : NaN; }
+function erf(x) { const t = 1 / (1 + 0.3275911 * Math.abs(x)); const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return x >= 0 ? y : -y; }
+const normCdf = z => 0.5 * (1 + erf(z / Math.SQRT2));
+function twoProp(c1, n1, c2, n2) {
+  if (!n1 || !n2) return { z: 0, p: 1 };
+  const p = (c1 + c2) / (n1 + n2), se = Math.sqrt(p * (1 - p) * (1 / n1 + 1 / n2));
+  if (!se) return { z: 0, p: 1 };
+  const z = (c1 / n1 - c2 / n2) / se; return { z, p: 2 * (1 - normCdf(Math.abs(z))) };
+}
+function slope(xs, ys) { const n = xs.length; if (n < 2) return NaN; const mx = mean(xs), my = mean(ys); let nu = 0, de = 0; for (let i = 0; i < n; i++) { nu += (xs[i] - mx) * (ys[i] - my); de += (xs[i] - mx) ** 2; } return de ? nu / de : NaN; }
+function tukeyUpper(a) { const q1 = quantile(a, .25), q3 = quantile(a, .75); return q3 + 1.5 * (q3 - q1); }
+function niceMax(v) { if (!(v > 0)) return 1; const m = Math.pow(10, Math.floor(Math.log10(v))); return [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].map(k => k * m).find(k => k >= v); }
+function isDark() { const t = document.documentElement.dataset.theme; if (t) return t === "dark"; return matchMedia("(prefers-color-scheme: dark)").matches; }
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function toast(msg) { const d = document.createElement("div"); d.className = "toast"; d.textContent = msg; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); }
+function lsGet(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch (e) { return def; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+// ════════════════════════════════════════════════════════════════════
+//  Taxonomy helpers
+// ════════════════════════════════════════════════════════════════════
+const CHILDREN = {};
+Object.entries(TERM_PARENTS).forEach(([c, p]) => (CHILDREN[p] = CHILDREN[p] || []).push(c));
+function taxonomyRole(term) {
+  if (FALLBACK_TERMS.has(term)) return "general (parent)";
+  if (AGGREGATE_OR_REGION_TERMS.has(term)) return "region / aggregate";
+  if (TERM_PARENTS[term]) return "specific";
+  return CONTROLLED_SET.has(term) ? "standalone" : "free-text";
+}
+function ancestors(term) { const out = [], seen = new Set(); let c = term; while (TERM_PARENTS[c] && !seen.has(c)) { seen.add(c); c = TERM_PARENTS[c]; out.push(c); } return out; }
+function parentChild(a, b) { return ancestors(a).includes(b) || ancestors(b).includes(a); }
+function levenshtein(a, b) { const m = a.length, n = b.length; if (!m) return n; if (!n) return m; let prev = Array.from({ length: n + 1 }, (_, i) => i), cur = new Array(n + 1); for (let i = 1; i <= m; i++) { cur[0] = i; for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); [prev, cur] = [cur, prev]; } return prev[n]; }
+function termWords(t) { return t.replace(/[_\-]/g, " ").split(/\s+/).filter(w => w && !["or", "of", "and", "the"].includes(w)); }
+function termSimilarity(o, c) {
+  const ow = termWords(o), cw = termWords(c); if (!ow.length || !cw.length) return 0;
+  const os = ow.join(" "), cs = cw.join(" "); if (os === cs) return 1;
+  const shared = ow.filter(w => cw.includes(w)).length; if (shared) return 0.6 + 0.4 * shared / Math.max(ow.length, cw.length);
+  const stem = w => w.replace(/(es|s)$/, ""); if (ow.some(w => cw.some(x => stem(w) === stem(x)))) return 0.7;
+  return 1 - levenshtein(os, cs) / Math.max(os.length, cs.length);
+}
+function nearestControlled(term) {
+  let best = "", bs = 0;
+  const cands = CONTROLLED_VOCABULARY.concat(Object.keys(VOCABULARY_ALIASES));
+  cands.forEach(c => { const s = termSimilarity(term, c); if (s > bs) { bs = s; best = VOCABULARY_ALIASES[c] || c; } });
+  return { term: best, sim: bs };
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  Row normalisation (logic carried over from v12)
+// ════════════════════════════════════════════════════════════════════
+function safeJsonArray(v) { if (!v) return []; if (Array.isArray(v)) return v; if (typeof v !== "string") return []; const t = v.trim(); if (!t || t === "nan" || t === "[]") return []; try { const p = JSON.parse(t); return Array.isArray(p) ? p : []; } catch (e) { return []; } }
+const toNum = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+const str = v => (v == null ? "" : String(v)).trim();
+function boxInfo(box) {
+  const out = { valid: false, area: 0, w: 0, h: 0, cx: 0, cy: 0, fullFrame: false, tiny: false, edge: false, box: null };
+  if (!Array.isArray(box) || box.length !== 4 || box.some(v => typeof v !== "number" || !isFinite(v))) return out;
+  const [y1, x1, y2, x2] = box;
+  if (y1 < 0 || x1 < 0 || y2 > 1000 || x2 > 1000 || y2 <= y1 || x2 <= x1) return out;
+  Object.assign(out, { valid: true, box, w: (x2 - x1) / 1000, h: (y2 - y1) / 1000, cx: (x1 + x2) / 2000, cy: (y1 + y2) / 2000 });
+  out.area = out.w * out.h; out.fullFrame = out.area >= 0.9; out.tiny = out.area < 0.001;
+  out.edge = y1 <= 5 || x1 <= 5 || y2 >= 995 || x2 >= 995;
+  return out;
+}
+function iou(b1, b2) { if (!b1 || !b2) return 0; const iy1 = Math.max(b1[0], b2[0]), ix1 = Math.max(b1[1], b2[1]), iy2 = Math.min(b1[2], b2[2]), ix2 = Math.min(b1[3], b2[3]); const inter = Math.max(0, iy2 - iy1) * Math.max(0, ix2 - ix1); const u = (b1[2] - b1[0]) * (b1[3] - b1[1]) + (b2[2] - b2[0]) * (b2[3] - b2[1]) - inter; return u > 0 ? inter / u : 0; }
+function centreDist(g) { if (!g.valid) return NaN; return Math.hypot(g.cx - .5, g.cy - .5) / Math.sqrt(.5); }
+function subjectScore(d) { if (!d.geom.valid) return 0; const c = Math.max(0, 1 - Math.min(1, centreDist(d.geom))); return d.geom.area * (0.4 + 0.6 * c) * (Number.isFinite(d.conf) ? d.conf : .75); }
+const wordTokens = s => String(s || "").toLowerCase().replace(/[_\-]/g, " ").match(/[a-z0-9]+/g) || [];
+function textMatches(corpus, d) {
+  const detail = wordTokens(d.detail), term = wordTokens(d.term).filter(w => w.length > 2 && !["or", "and", "the", "of"].includes(w));
+  const dm = detail.length && detail.every(w => corpus.includes(` ${w} `));
+  const tm = term.length && term.some(w => corpus.includes(` ${w} `) || corpus.includes(` ${w}s `));
+  return !!(dm || tm);
+}
+function parseFolder(desc) { const m = String(desc || "").match(/folder:\s*(.+?)\.?\s*$/i); if (!m) return []; return m[1].split(/\s*Â?»\s*/).map(s => s.trim()).filter(Boolean); }
+function parseYear(v) {
+  if (v instanceof Date && !isNaN(v)) return v.getUTCFullYear();
+  if (typeof v === "number" && v > 20000 && v < 80000) return new Date(Math.round((v - 25569) * 864e5)).getUTCFullYear();
+  const m = String(v || "").match(/(1[89]\d\d|20\d\d)/); return m ? +m[1] : null;
+}
+function parseList(v) { const seen = new Set(); return String(v || "").split(/\s*;\s*/).map(s => s.trim()).filter(s => { const k = s.toLowerCase(); if (!s || ["nan", "none", "(none)", "null"].includes(k) || seen.has(k)) return false; seen.add(k); return true; }); }
+function parseGemYears(v) { const ys = new Set(); String(v || "").split(/\s*\/\s*/).forEach(raw => { const m = raw.trim().match(/^(\d{4})-\d{2}-\d{2}$/); if (m) ys.add(+m[1]); }); return [...ys].sort(); }
+function frontImageUrl(raw) {
+  const links = String(raw.image_links || raw["image_links.1"] || "").split(/;\s*/).map(s => s.trim()).filter(Boolean);
+  const used = str(raw.gem_image_used); if (used) { const hit = links.find(l => l.endsWith(used)); if (hit) return hit; }
+  return links[0] || "";
+}
+function normDets(list, kind) {
+  return list.map(o => {
+    const term = (o && o.term != null ? String(o.term) : "").trim().toLowerCase();
+    const detail = o && o.detail ? String(o.detail).trim().toLowerCase() : "";
+    return { term, detail, expr: detail ? `${term} (${detail})` : term, kind,
+      conf: o && o.confidence_score != null ? toNum(o.confidence_score) : NaN,
+      rationale: o && o.rationale ? String(o.rationale) : "", geom: boxInfo(o ? o.box_2d : null) };
+  }).filter(d => d.term);
+}
+function noteClass(n) { return n.replace(/'[^']*'/g, "‹term›").replace(/"[^"]*"/g, "‹term›").trim(); }
+function normalizeRow(raw) {
+  const controlled = normDets(safeJsonArray(raw.gem_controlled_objects), "ctrl");
+  const other = normDets(safeJsonArray(raw.gem_other_objects), "other");
+  const all = controlled.concat(other);
+  const folder = parseFolder(raw.description);
+  const w = toNum(raw.gem_image_width), h = toNum(raw.gem_image_height);
+  let dupes = 0; for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) if (all[i].term === all[j].term && all[i].geom.valid && all[j].geom.valid && iou(all[i].geom.box, all[j].geom.box) > .7) dupes++;
+  let leaks = 0; for (let i = 0; i < controlled.length; i++) for (let j = i + 1; j < controlled.length; j++) { const a = controlled[i], b = controlled[j]; if (parentChild(a.term, b.term) && a.geom.valid && b.geom.valid && iou(a.geom.box, b.geom.box) >= .5) leaks++; }
+  const confs = all.map(d => d.conf).filter(Number.isFinite);
+  const gemYears = parseGemYears(raw.gem_date_flat), catYear = parseYear(raw.date);
+  const status = str(raw.gem_status);
+  const notes = str(raw.gem_validation_notes).split(/\s*\|\s*/).filter(Boolean);
+  const transcription = str(raw.gem_transcription_flat);
+  const duration = toNum(raw.gem_duration_seconds), outTok = toNum(raw.gem_output_tokens);
+  const r = {
+    uid: str(raw.uid), identifier: str(raw.identifier), title: str(raw.title), url: str(raw.url), imageUrl: frontImageUrl(raw),
+    folder, folderTop: folder[0] || "(unknown)",
+    folderPaths: folder.map((_, i) => folder.slice(0, i + 1).join(" » ")),
+    catMakers: parseList(raw.maker), gemMakers: parseList(raw.gem_maker_flat),
+    gemYears, catYear, width: w, height: h,
+    orientation: w && h ? (w > h * 1.05 ? "landscape" : h > w * 1.05 ? "portrait" : "square") : "unknown",
+    controlled, other, all,
+    meanConf: confs.length ? mean(confs) : NaN, minConf: confs.length ? Math.min(...confs) : NaN,
+    invalidBoxes: all.filter(d => !d.geom.valid).length, fullFrame: all.filter(d => d.geom.fullFrame).length, tiny: all.filter(d => d.geom.tiny).length,
+    dupes, leaks, missingDetail: controlled.filter(d => TERMS_REQUIRING_DETAIL.has(d.term) && !d.detail).length,
+    fallbackDets: controlled.filter(d => FALLBACK_TERMS.has(d.term)).length,
+    dropped: safeJsonArray(raw.gem_dropped_objects),
+    status, processed: status ? status === "ok" : !!str(raw.gem_processed_at),
+    validationLevel: str(raw.gem_validation_level) || "(none)", notes, noteClasses: notes.map(noteClass),
+    cost: toNum(raw.gem_estimated_cost_usd), duration, tokens: toNum(raw.gem_total_tokens), inTokens: toNum(raw.gem_input_total_tokens),
+    outTokens: outTok, thoughts: toNum(raw.gem_thoughts_tokens), attempts: toNum(raw.gem_attempts),
+    model: str(raw.gem_model), thinking: str(raw.gem_thinking_level), finish: str(raw.gem_finish_reason).replace(/^FinishReason\./, "") || "(none)",
+    error: str(raw.gem_error), processedAt: str(raw.gem_processed_at),
+    versions: { pipeline: str(raw.gem_pipeline_version), prompt: str(raw.gem_prompt_version), schema: str(raw.gem_schema_version), vocabulary: str(raw.gem_vocabulary_version) },
+    transcription, corpus: " " + wordTokens(transcription).join(" ") + " ",
+    catDate: str(raw.date), gemDate: str(raw.gem_date_flat), _raw: raw
+  };
+  let best = null, bs = 0; controlled.forEach(d => { const s = subjectScore(d); if (s > bs) { bs = s; best = d; } }); r.principal = best;
+  return r;
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  State
+// ════════════════════════════════════════════════════════════════════
+const emptyF = () => ({ terms: [], makers: [], decades: [], folders: [], orient: "", valid: "", text: "" });
+const state = {
+  A: null, B: null,                     // loaded files {name, rows, all}
+  settings: Object.assign({ minN: 5, termKey: "term", include: "all", makerSource: "gem_fallback", yearSource: "gem_fallback" }, lsGet("vew13.settings", {})),
+  makerOverrides: lsGet("vew13.makers", {}),
+  mode: "single", lane: "A", filters: { A: emptyF(), B: emptyF() },
+  tab: "overview", drawer: [], local: { vocabKind: "all", vocabMetric: "rows", coMetric: "lift", matrixBy: "maker", trendTerms: [], compTerm: "", pairA: "", pairB: "", recSort: "year", recView: "grid", recPage: 1, recLane: "A", projN: 100000, recDrawerRun: "A", flagFilter: "" },
+  idx: null
+};
+
+// ── maker standardisation ──────────────────────────────────────────
+const COMPANY = new Set(["ltd", "limited", "co", "company", "inc", "plc", "the", "and"]);
+function makerKey(name) {
+  let s = String(name).toLowerCase().replace(/&/g, " and ").replace(/[.'’]/g, "");
+  const parts = s.split(",").map(p => p.trim()).filter(Boolean);
+  if (parts.length === 2 && !parts.some(p => p.split(/\s+/).some(w => COMPANY.has(w))) && parts[0].split(/\s+/).length <= 2) s = parts[1] + " " + parts[0];
+  return s.replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter(w => w && !COMPANY.has(w)).join(" ");
+}
+function titleCase(s) { return s.toLowerCase().replace(/\b([a-z])/g, c => c.toUpperCase()).replace(/\bLtd\b/g, "Ltd"); }
+function makerSourceList(r) {
+  const s = state.settings.makerSource;
+  if (s === "gem") return r.gemMakers;
+  if (s === "catalogue") return r.catMakers;
+  return r.gemMakers.length ? r.gemMakers : r.catMakers;
+}
+function buildMakerGroups(rows) {
+  const groups = new Map();
+  rows.forEach(r => makerSourceList(r).forEach(m => {
+    const k = makerKey(m); if (!k) return;
+    if (!groups.has(k)) groups.set(k, { key: k, variants: new Map(), n: 0 });
+    const g = groups.get(k); g.n++; g.variants.set(m, (g.variants.get(m) || 0) + 1);
+  }));
+  groups.forEach(g => {
+    const vs = [...g.variants.entries()].sort((a, b) => b[1] - a[1]);
+    const nonCaps = vs.find(([v]) => v !== v.toUpperCase());
+    g.suggested = nonCaps ? nonCaps[0] : titleCase(vs[0][0]);
+    g.canonical = state.makerOverrides[g.key] || g.suggested;
+  });
+  return groups;
+}
+
+// ── derived per-row data (depends on settings) ─────────────────────
+function deriveRows(rows, groups) {
+  const st = state.settings;
+  rows.forEach(r => {
+    const g = groups || state.idx && state.idx.makerGroups;
+    r.makers = [...new Set(makerSourceList(r).map(m => { const k = makerKey(m); return g && g.get(k) ? g.get(k).canonical : m; }))];
+    r.makerSet = new Set(r.makers);
+    r.year = st.yearSource === "catalogue" ? r.catYear : st.yearSource === "gem" ? (r.gemYears[0] || null) : (r.gemYears[0] || r.catYear);
+    r.decade = r.year ? String(Math.floor(r.year / 10) * 10) : "unknown";
+    r.dets = st.include === "ctrl" ? r.controlled : r.all;
+    r.keyDets = new Map();
+    r.dets.forEach(d => { const k = st.termKey === "expr" ? d.expr : d.term; if (!r.keyDets.has(k)) r.keyDets.set(k, []); r.keyDets.get(k).push(d); });
+    r.keys = new Set(r.keyDets.keys());
+    r.tags = new Set(); r.all.forEach(d => { r.tags.add(d.term); r.tags.add(d.expr); });
+    r.folderSet = new Set(r.folderPaths);
+    r.search = (r.title + " " + r.transcription + " " + r.identifier + " " + r.uid).toLowerCase();
+  });
+}
+function rebuild() {
+  const rows = state.A.rows;
+  const groups = buildMakerGroups(rows);
+  state.idx = { makerGroups: groups };
+  deriveRows(rows, groups);
+  if (state.B) deriveRows(state.B.rows, groups);
+  const idx = state.idx;
+  idx.keyCounts = countKeys(rows);
+  idx.tagCounts = new Map(); rows.forEach(r => r.tags.forEach(t => idx.tagCounts.set(t, (idx.tagCounts.get(t) || 0) + 1)));
+  idx.makerCounts = new Map(); rows.forEach(r => r.makers.forEach(m => idx.makerCounts.set(m, (idx.makerCounts.get(m) || 0) + 1)));
+  idx.folderCounts = new Map(); rows.forEach(r => r.folderPaths.forEach(p => idx.folderCounts.set(p, (idx.folderCounts.get(p) || 0) + 1)));
+  idx.decades = [...new Set(rows.map(r => r.decade))].sort();
+  idx.validLevels = [...new Set(rows.map(r => r.validationLevel))].sort();
+  fillSelects();
+}
+
+// ── filtering ──────────────────────────────────────────────────────
+function matches(r, f) {
+  if (f.terms.length && !f.terms.every(t => r.tags.has(t))) return false;
+  if (f.makers.length && !f.makers.some(m => r.makerSet.has(m))) return false;
+  if (f.decades.length && !f.decades.includes(r.decade)) return false;
+  if (f.folders.length && !f.folders.some(p => r.folderSet.has(p))) return false;
+  if (f.orient && r.orientation !== f.orient) return false;
+  if (f.valid && r.validationLevel !== f.valid) return false;
+  if (f.text && !r.search.includes(f.text.toLowerCase())) return false;
+  return true;
+}
+const filterRows = (rows, f) => rows.filter(r => matches(r, f));
+function fEmpty(f) { return !f.terms.length && !f.makers.length && !f.decades.length && !f.folders.length && !f.orient && !f.valid && !f.text; }
+function mergeF(a, b) { const o = JSON.parse(JSON.stringify(a)); Object.entries(b || {}).forEach(([k, v]) => { if (Array.isArray(v)) o[k] = [...new Set(o[k].concat(v))]; else if (v) o[k] = v; }); return o; }
+function withoutF(f, field, value) { const o = JSON.parse(JSON.stringify(f)); if (Array.isArray(o[field])) o[field] = o[field].filter(v => v !== value); else o[field] = ""; return o; }
+let _ctxCache = null;
+function ctx() {
+  const key = JSON.stringify([state.filters, state.mode, state.settings, state.idx && state.idx.v]);
+  if (_ctxCache && _ctxCache.key === key) return _ctxCache;
+  const base = state.A.rows;
+  const a = filterRows(base, state.filters.A);
+  const b = state.mode === "compare" ? filterRows(base, state.filters.B) : null;
+  _ctxCache = { key, base, A: a, B: b, cmp: state.mode === "compare" };
+  return _ctxCache;
+}
+function invalidate() { _ctxCache = null; if (state.idx) state.idx.v = (state.idx.v || 0) + 1; }
+
+// ── aggregation ────────────────────────────────────────────────────
+function countKeys(rows) {
+  const m = new Map();
+  rows.forEach(r => r.keyDets.forEach((ds, k) => {
+    let e = m.get(k); if (!e) { e = { key: k, n: 0, d: 0, cs: 0, cn: 0, ctrl: 0, other: 0 }; m.set(k, e); }
+    e.n++; e.d += ds.length; ds.forEach(d => { if (Number.isFinite(d.conf)) { e.cs += d.conf; e.cn++; } d.kind === "ctrl" ? e.ctrl++ : e.other++; });
+  }));
+  m.forEach(e => e.conf = e.cn ? e.cs / e.cn : NaN);
+  return m;
+}
+const topKeys = (rows, n, kind) => [...countKeys(rows).values()].filter(e => !kind || kind === "all" || (kind === "ctrl" ? e.ctrl : e.other && !e.ctrl)).sort((a, b) => b.n - a.n || a.key.localeCompare(b.key)).slice(0, n);
+function groupCount(rows, fn) { const m = new Map(); rows.forEach(r => { const ks = fn(r); (Array.isArray(ks) ? ks : [ks]).forEach(k => { if (k == null) return; if (!m.has(k)) m.set(k, []); m.get(k).push(r); }); }); return m; }
+function distinctive(rowsIn, rowsOut, limit = 12) {
+  const cIn = countKeys(rowsIn), cOut = countKeys(rowsOut), n1 = rowsIn.length, n2 = rowsOut.length, minN = state.settings.minN;
+  const out = [];
+  cIn.forEach((e, k) => {
+    const c2 = cOut.get(k) ? cOut.get(k).n : 0; if (e.n < Math.min(minN, 2)) return;
+    const p1 = e.n / n1, p2 = n2 ? c2 / n2 : 0, t = twoProp(e.n, n1, c2, n2);
+    out.push({ key: k, c1: e.n, c2, p1, p2, lift: p2 ? p1 / p2 : Infinity, z: t.z, p: t.p, small: e.n < minN });
+  });
+  return out.filter(o => o.p1 > o.p2).sort((a, b) => b.z - a.z).slice(0, limit);
+}
+function diffKeys(rowsA, rowsB, limit = 20) {
+  const cA = countKeys(rowsA), cB = countKeys(rowsB), nA = rowsA.length, nB = rowsB.length;
+  const keys = new Set([...cA.keys(), ...cB.keys()]), out = [];
+  keys.forEach(k => { const a = cA.get(k) ? cA.get(k).n : 0, b = cB.get(k) ? cB.get(k).n : 0; if (a + b < state.settings.minN) return; const t = twoProp(a, nA, b, nB); out.push({ key: k, a, b, pa: nA ? a / nA : 0, pb: nB ? b / nB : 0, z: t.z, p: t.p }); });
+  return out.sort((x, y) => Math.abs(y.z) - Math.abs(x.z)).slice(0, limit);
+}
+function trendTerms(rows) {
+  const minN = state.settings.minN, byDec = groupCount(rows.filter(r => r.decade !== "unknown"), r => r.decade);
+  const decs = [...byDec.keys()].filter(d => byDec.get(d).length >= minN).sort();
+  if (decs.length < 3) return { decs, list: [] };
+  const counts = decs.map(d => countKeys(byDec.get(d))), ns = decs.map(d => byDec.get(d).length);
+  const tot = countKeys(rows), list = [];
+  tot.forEach((e, k) => { if (e.n < minN * 2) return; const ys = counts.map((c, i) => (c.get(k) ? c.get(k).n : 0) / ns[i]); const s = slope(decs.map(Number).map(x => x / 10), ys); if (Number.isFinite(s)) list.push({ key: k, slope: s, ys, n: e.n }); });
+  return { decs, list };
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  Chart primitives (plain HTML/SVG, all clickable via data-act)
+// ════════════════════════════════════════════════════════════════════
+function legend(items) { return `<div class="legend">${items.map(([l, c, dash]) => `<span><i style="background:${c}${dash ? ";background:repeating-linear-gradient(90deg," + c + " 0 4px,transparent 4px 6px)" : ""}"></i>${esc(l)}</span>`).join("")}</div>`; }
+function grpLegend() { return legend([["Group A", "var(--grpA)"], ["Group B", "var(--grpB)"]]); }
+/* items: {label, v, vB?, txt, tip, act, small} */
+function barList(items, { max, fmtV = fmtN, paired = false } = {}) {
+  if (!items.length) return `<div class="muted">Nothing to show for the current filters.</div>`;
+  const mx = max || Math.max(...items.map(i => Math.max(i.v || 0, paired ? i.vB || 0 : 0))) || 1;
+  return `<div class="bars">${items.map(i => `<div class="bar-row${paired ? " paired" : ""}${i.small ? " small-n" : ""}" data-act="${i.act || ""}" data-tip="${esc(i.tip || "")}">
+    <span class="lbl" title="${esc(i.label)}">${esc(i.label)}</span>
+    <span class="track"><span class="fill A" style="width:${(i.v || 0) / mx * 100}%${i.v ? "" : ";min-width:0"}"></span>${paired ? `<span class="fill B" style="width:${(i.vB || 0) / mx * 100}%${i.vB ? "" : ";min-width:0"}"></span>` : ""}</span>
+    <span class="val">${i.txt != null ? i.txt : fmtV(i.v)}</span></div>`).join("")}</div>`;
+}
+function colChart(items, { paired = false, h = 150 } = {}) {
+  if (!items.length) return `<div class="muted">No data.</div>`;
+  const mx = Math.max(...items.map(i => Math.max(i.v || 0, paired ? i.vB || 0 : 0))) || 1;
+  return `<div class="cols" style="height:${h}px">${items.map(i => `<div class="col${paired ? " paired" : ""}" data-act="${i.act || ""}" data-tip="${esc(i.tip || "")}"><div class="cf" style="height:${(i.v || 0) / mx * 100}%"></div>${paired ? `<div class="cf B" style="height:${(i.vB || 0) / mx * 100}%"></div>` : ""}</div>`).join("")}</div>
+  <div class="col-labels">${items.map((i, k) => `<span>${items.length > 14 && k % 2 ? "" : esc(i.label)}</span>`).join("")}</div>`;
+}
+function divList(items) {   // items: {label, a, b, tip, act}  (shares 0..1)
+  if (!items.length) return `<div class="muted">No differences above the minimum group size.</div>`;
+  const mx = Math.max(...items.map(i => Math.abs(i.a - i.b))) || 1;
+  return `<div class="bars">${items.map(i => { const d = i.a - i.b, w = Math.abs(d) / mx * 50; return `<div class="div-row" data-act="${i.act || ""}" data-tip="${esc(i.tip || "")}"><span class="lbl" title="${esc(i.label)}">${esc(i.label)}</span><span class="div-track">${d >= 0 ? `<span class="div-fill A" style="right:50%;width:${w}%"></span>` : `<span class="div-fill B" style="left:50%;width:${w}%"></span>`}</span><span class="val mono">${d >= 0 ? "+" : "−"}${(Math.abs(d) * 100).toFixed(1)} pp</span></div>`; }).join("")}</div>
+  <div class="legend"><span>◀ more common in <b style="color:var(--grpA)">A</b></span><span style="margin-left:auto">more common in <b style="color:var(--grpB)">B</b> ▶</span></div>`;
+}
+function lineChart(series, xs, { yFmt = v => pct(v, 0), h = 210, actX, yCap = 1 } = {}) {
+  const W = 640, H = h, L = 44, R = 12, T = 10, B = 24, iw = W - L - R, ih = H - T - B;
+  const all = series.flatMap(s => s.values.filter(v => v != null)); let ymax = niceMax(Math.max(...all, 0) * 1.05); if (yCap) ymax = Math.min(ymax, yCap);
+  const X = i => L + (xs.length === 1 ? iw / 2 : i * iw / (xs.length - 1)), Y = v => T + ih - v / ymax * ih;
+  let g = `<g class="grid">`; for (let k = 0; k <= 4; k++) { const v = ymax * k / 4; g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${yFmt(v)}</text>`; } g += `</g>`;
+  const step = Math.ceil(xs.length / 12);
+  xs.forEach((x, i) => { if (i % step === 0) g += `<text x="${X(i)}" y="${H - 6}" text-anchor="middle">${esc(x)}</text>`; });
+  series.forEach(s => {
+    let d = "", pen = false; s.values.forEach((v, i) => { if (v == null) { pen = false; return; } d += (pen ? "L" : "M") + X(i).toFixed(1) + " " + Y(v).toFixed(1); pen = true; });
+    g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" ${s.dash ? 'stroke-dasharray="5 4"' : ""} stroke-linejoin="round"/>`;
+    s.values.forEach((v, i) => { if (v != null) g += `<circle cx="${X(i)}" cy="${Y(v)}" r="${s.faint && s.faint[i] ? 2.5 : 3.5}" fill="${s.faint && s.faint[i] ? "var(--surface)" : s.color}" stroke="${s.color}" stroke-width="1.5"/>`; });
+  });
+  const cw = xs.length > 1 ? iw / (xs.length - 1) : iw;
+  xs.forEach((x, i) => { const tip = `<b>${esc(x)}</b><br>` + series.map(s => `${esc(s.name)}: ${s.values[i] == null ? "–" : yFmt(s.values[i])}${s.notes && s.notes[i] ? " " + esc(s.notes[i]) : ""}`).join("<br>"); g += `<rect class="hit" x="${X(i) - cw / 2}" y="${T}" width="${cw}" height="${ih}" data-tiphtml="${esc(tip)}" data-act="${actX ? actX(x) : ""}"/>`; });
+  return (series.length > 1 ? legend(series.map(s => [s.name, s.color, s.dash])) : "") + `<svg class="chart" viewBox="0 0 ${W} ${H}">${g}</svg>`;
+}
+function seqStep(t) { return Math.max(0, Math.min(7, Math.round(t * 7))); }
+function cellStyle(t) { const k = seqStep(t); const dark = isDark(); const ink = dark ? (k >= 5 ? "#111" : "var(--text)") : (k >= 4 ? "#fff" : "var(--text)"); return `background:var(--seq-${k});color:${ink}`; }
+function scaleLegend(lo, hi) { return `<div class="scale"><span>${lo}</span><span class="ramp">${[0, 1, 2, 3, 4, 5, 6, 7].map(k => `<i style="background:var(--seq-${k})"></i>`).join("")}</span><span>${hi}</span></div>`; }
+function matrix(rowsL, colsL, cell, { lo = "0", hi = "max" } = {}) {
+  let h = `<div class="matrix"><table><thead><tr><th></th>${colsL.map(c => `<th title="${esc(c)}">${esc(pretty(c))}</th>`).join("")}</tr></thead><tbody>`;
+  rowsL.forEach((r, i) => { h += `<tr><th title="${esc(r.title || r.label)}"${r.act ? ` data-act="${r.act}" style="cursor:pointer"` : ""}>${esc(r.label)}</th>`; colsL.forEach((c, j) => { const x = cell(i, j); h += `<td style="${cellStyle(x.t)}${x.faint ? ";opacity:.45" : ""}" data-act="${x.act || ""}" data-tip="${esc(x.tip || "")}">${x.txt}</td>`; }); h += `</tr>`; });
+  return h + `</tbody></table></div>` + scaleLegend(lo, hi);
+}
+function kpi(l, v, s, act) { return `<div class="kpi${act ? " clickable" : ""}"${act ? ` data-act="${act}"` : ""}><div class="l">${l}</div><div class="v">${v}</div>${s ? `<div class="s">${s}</div>` : ""}</div>`; }
+function card(title, sub, body, { ctrls = "", more = "", cls = "" } = {}) {
+  return `<section class="card ${cls}"><div class="card-head"><div><h2>${title}</h2>${sub ? `<p class="sub">${sub}</p>` : ""}</div>${ctrls ? `<div class="ctrls">${ctrls}</div>` : ""}</div>${body}${more ? `<details class="more"><summary>Details</summary>${more}</details>` : ""}</section>`;
+}
+function seg(key, opts) { return `<div class="seg">${opts.map(([v, l]) => `<button class="${state.local[key] === v ? "on" : ""}" data-act="${A("local", key, v)}">${l}</button>`).join("")}</div>`; }
+function table(cols, rows, { cls = "", scroll = true } = {}) {
+  // cols: [{h, num}], rows: [{cells:[{v, html}], act}]
+  const t = `<table class="t sortable ${cls}"><thead><tr>${cols.map((c, i) => `<th class="${c.num ? "num" : ""}" data-col="${i}">${c.h}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr class="${r.act ? "click" : ""}" data-act="${r.act || ""}">${r.cells.map((c, i) => `<td class="${cols[i].num ? "num" : ""}" data-v="${esc(c.v != null ? c.v : "")}">${c.html != null ? c.html : esc(c.v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  return scroll ? `<div class="tscroll">${t}</div>` : t;
+}
+function thumbStrip(rows, n = 12, label) {
+  if (!rows.length) return `<div class="muted">No records.</div>`;
+  return `<div class="strip">${rows.slice(0, n).map(r => `<div class="s-i" data-act="${A("open", "record", r.uid)}" data-tip="${esc(r.title)}"><div class="thumb-slot" data-thumb="${esc(r.uid)}">${thumbInner(r)}</div><span>${esc(label ? label(r) : (r.year || ""))}</span></div>`).join("")}</div>`;
+}
+const openAct = (type, v) => A("open", type, v);
+// Thumbnails are never requested automatically: each shows a button and loads only when clicked.
+const loadedThumbs = new Set();
+function thumbInner(r) {
+  if (!r.imageUrl) return `<span class="thumb-none">no image</span>`;
+  if (loadedThumbs.has(r.uid)) return `<img src="${esc(r.imageUrl)}" alt="" onerror="this.outerHTML='<span class=thumb-none>could not load</span>'">`;
+  return `<button class="thumb-load" data-act="${A("thumb", r.uid)}" data-tip="Request this one image from the collection server">Load thumbnail</button>`;
+}
+function loadThumb(uid) {
+  loadedThumbs.add(uid);
+  const r = state.A.rows.find(x => x.uid === uid) || (state.B && state.B.rows.find(x => x.uid === uid));
+  if (!r) return;
+  document.querySelectorAll(`[data-thumb="${CSS.escape(uid)}"]`).forEach(el => el.innerHTML = thumbInner(r));
+}
+const termLabel = k => pretty(k);
+const smallTag = n => n < state.settings.minN ? ` <span class="badge warn" data-tip="Fewer than ${state.settings.minN} records – treat with caution">small n</span>` : "";
+
+// ════════════════════════════════════════════════════════════════════
+//  Filter bar
+// ════════════════════════════════════════════════════════════════════
+function fillSelects() {
+  const idx = state.idx;
+  $("fDecade").innerHTML = `<option value="">Decade</option>` + idx.decades.map(d => `<option value="${esc(d)}">${d === "unknown" ? "Unknown date" : d + "s"}</option>`).join("");
+  const tops = [...idx.folderCounts.entries()].filter(([p]) => !p.includes(" » ")).sort((a, b) => b[1] - a[1]);
+  $("fFolder").innerHTML = `<option value="">Folder</option>` + tops.map(([p, n]) => `<option value="${esc(p)}">${esc(p)} (${n})</option>`).join("");
+  $("fOrient").innerHTML = `<option value="">Orientation</option>` + ["landscape", "portrait", "square", "unknown"].map(o => `<option>${o}</option>`).join("");
+  $("fValid").innerHTML = `<option value="">Validation</option>` + idx.validLevels.map(o => `<option>${esc(o)}</option>`).join("");
+}
+const FIELD_LABEL = { terms: "Term", makers: "Maker", decades: "Decade", folders: "Folder", orient: "Orientation", valid: "Validation", text: "Text" };
+function chipsFor(lane) {
+  const f = state.filters[lane], out = [];
+  Object.keys(FIELD_LABEL).forEach(k => { const vals = Array.isArray(f[k]) ? f[k] : f[k] ? [f[k]] : []; vals.forEach(v => out.push(`<span class="chip ${lane === "B" ? "B" : ""}">${FIELD_LABEL[k]}: <b>${esc(k === "terms" ? pretty(v) : k === "decades" && v !== "unknown" ? v + "s" : v)}</b><button class="x" data-act="${A("rmf", lane, k, v)}" aria-label="Remove">×</button></span>`)); });
+  return out.join("") || `<span class="empty-chip">${lane === "B" && state.mode === "compare" ? "No filters – all records" : "No filters – showing all records"}</span>`;
+}
+function renderLanes() {
+  const c = ctx(), total = c.base.length;
+  if (state.mode === "single") { $("lanes").innerHTML = `<div class="frow"><div class="chips">${chipsFor("A")}</div><span class="spacer"></span><span class="count dim" style="font-size:12.5px"><b>${fmtN(c.A.length)}</b> of ${fmtN(total)} records</span></div>`; return; }
+  $("lanes").innerHTML = ["A", "B"].map(l => `<div class="lane ${state.lane === l ? "active" : ""}" data-act="${A("lane", l)}" data-tip="Click to add new filters to Group ${l}"><span class="lane-tag ${l}">${l}</span><div class="chips">${chipsFor(l)}</div><span class="spacer"></span><span class="count"><b>${fmtN(c[l].length)}</b> records${state.lane === l ? " · adding filters here" : ""}</span></div>`).join("");
+}
+function addFilter(field, value, lane) {
+  lane = lane || state.lane; const f = state.filters[lane];
+  if (Array.isArray(f[field])) { if (!f[field].includes(value)) f[field].push(value); } else f[field] = value;
+  state.local.recPage = 1; invalidate(); renderAll();
+}
+function removeFilter(lane, field, value) { const f = state.filters[lane]; if (Array.isArray(f[field])) f[field] = f[field].filter(v => v !== value); else f[field] = ""; state.local.recPage = 1; invalidate(); renderAll(); }
+
+// ── search suggestions ────────────────────────────────────────────
+let sgItems = [], sgAct = 0;
+function renderSuggest() {
+  const q = $("searchInput").value.trim().toLowerCase(), box = $("suggest");
+  if (!q) { box.classList.add("hidden"); sgItems = []; return; }
+  const idx = state.idx, match = s => s.toLowerCase().replace(/_/g, " ").includes(q.replace(/_/g, " "));
+  const terms = [...idx.tagCounts.entries()].filter(([t]) => match(t)).sort((a, b) => (a[0].startsWith(q) ? -1 : 0) - (b[0].startsWith(q) ? -1 : 0) || b[1] - a[1]).slice(0, 8);
+  const makers = [...idx.makerCounts.entries()].filter(([t]) => match(t)).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const folders = [...idx.folderCounts.entries()].filter(([t]) => match(t)).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  sgItems = [];
+  let h = "";
+  const sec = (title, arr, field) => { if (!arr.length) return; h += `<div class="sg-h">${title}</div>`; arr.forEach(([v, n]) => { sgItems.push([field, v]); h += `<div class="sg-i" data-sg="${sgItems.length - 1}"><span>${esc(field === "terms" ? pretty(v) : v)}</span><span class="muted">${fmtN(n)}</span></div>`; }); };
+  sec("Terms & details", terms, "terms"); sec("Makers", makers, "makers"); sec("Folders", folders, "folders");
+  sgItems.push(["text", $("searchInput").value.trim()]); h += `<div class="sg-h">Free text</div><div class="sg-i" data-sg="${sgItems.length - 1}"><span>Search titles & transcriptions for “${esc($("searchInput").value.trim())}”</span></div>`;
+  box.innerHTML = h; box.classList.remove("hidden"); sgAct = 0; hlSuggest();
+}
+function hlSuggest() { document.querySelectorAll("#suggest .sg-i").forEach(e => e.classList.toggle("act", +e.dataset.sg === sgAct)); }
+function pickSuggest(i) { const it = sgItems[i]; if (!it) return; $("searchInput").value = ""; $("suggest").classList.add("hidden"); addFilter(it[0], it[1]); }
+
+// ════════════════════════════════════════════════════════════════════
+//  Tabs
+// ════════════════════════════════════════════════════════════════════
+const TABS = [
+  ["overview", "Overview"], ["vocab", "Vocabulary"], ["people", "People & Time"], ["composition", "Composition"],
+  ["text", "Text ↔ Image"], ["qa", "Pipeline QA"], ["runs", "Run comparison"], ["records", "Records"]
+];
+function renderTabs() {
+  const c = ctx();
+  $("tabs").innerHTML = TABS.filter(([k]) => k !== "runs" || state.B).map(([k, l]) => `<button class="tab ${state.tab === k ? "on" : ""}" data-act="${A("tab", k)}">${l}${k === "records" ? `<span class="n">${fmtN(c.A.length)}</span>` : ""}</button>`).join("");
+}
+function head(title, desc, right = "") { return `<div class="view-head"><div><h1>${title}</h1>${desc ? `<p>${desc}</p>` : ""}</div>${right}</div>`; }
+function laneNote() { return ctx().cmp ? "" : ""; }
+
+// ── Overview ───────────────────────────────────────────────────────
+function viewOverview() {
+  const c = ctx(), a = c.A, b = c.B, cmp = c.cmp, minN = state.settings.minN;
+  const stats = rows => {
+    const ck = countKeys(rows), confs = rows.flatMap(r => r.dets.map(d => d.conf)).filter(Number.isFinite), ys = rows.map(r => r.year).filter(Boolean);
+    return { n: rows.length, keys: ck.size, medTerms: median(rows.map(r => r.keys.size)), conf: mean(confs), y0: ys.length ? Math.min(...ys) : null, y1: ys.length ? Math.max(...ys) : null, trans: rows.length ? rows.filter(r => r.transcription).length / rows.length : NaN, dated: rows.length ? ys.length / rows.length : NaN };
+  };
+  const sa = stats(a), sb = cmp ? stats(b) : null;
+  const two = (fa, fb) => cmp ? `<span class="a">${fa}</span> <span class="muted" style="font-size:14px">vs</span> <span class="b">${fb}</span>` : fa;
+  let h = head("Overview", cmp ? "Group A and Group B side by side. Click any bar to drill into it." : "A summary of the records matching your filters. Click any bar, tile or item to drill into it.");
+  h += `<div class="kpis">
+    ${kpi("Records", two(fmtN(sa.n), sb && fmtN(sb.n)), cmp ? "" : `of ${fmtN(c.base.length)} processed`, A("tab", "records"))}
+    ${kpi("Distinct terms", two(fmtN(sa.keys), sb && fmtN(sb.keys)), state.settings.termKey === "expr" ? "term + detail" : "base terms", A("tab", "vocab"))}
+    ${kpi("Median terms / image", two(fx(sa.medTerms, 0), sb && fx(sb.medTerms, 0)))}
+    ${kpi("Mean confidence", two(fx(sa.conf), sb && fx(sb.conf)), "", A("tab", "qa"))}
+    ${kpi("Years covered", two(sa.y0 ? `${sa.y0}–${sa.y1}` : "–", sb && (sb.y0 ? `${sb.y0}–${sb.y1}` : "–")), cmp ? "" : `${pct(sa.dated, 0)} dated`, A("tab", "people"))}
+    ${kpi("With transcription", two(pct(sa.trans, 0), sb && pct(sb.trans, 0)), "", A("tab", "text"))}
+  </div>`;
+  // top terms
+  const top = topKeys(a, 15);
+  let topItems;
+  if (cmp) {
+    const cb = countKeys(b), keys = [...new Set(top.map(e => e.key).concat(topKeys(b, 8).map(e => e.key)))].slice(0, 16);
+    const ca = countKeys(a);
+    topItems = keys.map(k => { const va = ca.get(k) ? ca.get(k).n / (a.length || 1) : 0, vb = cb.get(k) ? cb.get(k).n / (b.length || 1) : 0; return { label: termLabel(k), v: va, vB: vb, txt: `${pct(va, 0)} · ${pct(vb, 0)}`, tip: `${pretty(k)} — A ${pct(va)} · B ${pct(vb)} of records`, act: openAct("term", k) }; });
+  } else topItems = top.map(e => ({ label: termLabel(e.key), v: e.n / a.length, txt: pct(e.n / a.length, 0), tip: `${pretty(e.key)} — in ${fmtN(e.n)} records (${pct(e.n / a.length)}); ${fmtN(e.d)} detections`, act: openAct("term", e.key) }));
+  const decs = state.idx.decades;
+  const byDecA = groupCount(a, r => r.decade), byDecB = cmp ? groupCount(b, r => r.decade) : null;
+  const decItems = decs.map(d => { const va = (byDecA.get(d) || []).length, vb = cmp ? (byDecB.get(d) || []).length : 0; return { label: d === "unknown" ? "?" : d.slice(2) + "s", v: cmp ? va / (a.length || 1) : va, vB: cmp ? vb / (b.length || 1) : 0, tip: d === "unknown" ? `Undated: ${fmtN(va)}${cmp ? " · B " + fmtN(vb) : ""}` : `${d}s: ${fmtN(va)} records${cmp ? " · B " + fmtN(vb) : ""}`, act: openAct("decade", d) }; });
+  h += `<div class="grid g2">`;
+  h += card("Most frequent terms", cmp ? "Share of records in each group containing the term" : "Share of records containing each term", (cmp ? grpLegend() : "") + barList(topItems, { paired: cmp }),
+    { more: cmp ? "" : table([{ h: "Term" }, { h: "Records", num: 1 }, { h: "Share", num: 1 }, { h: "Detections", num: 1 }, { h: "Mean conf.", num: 1 }], topKeys(a, 60).map(e => ({ act: openAct("term", e.key), cells: [{ v: pretty(e.key) }, { v: e.n, html: fmtN(e.n) }, { v: e.n / a.length, html: pct(e.n / a.length) }, { v: e.d, html: fmtN(e.d) }, { v: e.conf, html: fx(e.conf) }] }))) });
+  h += card("Records by decade", cmp ? "Share of each group's records per decade" : "Number of records per decade (catalogue / transcribed date)", (cmp ? grpLegend() : "") + colChart(decItems, { paired: cmp }));
+  h += `</div>`;
+  if (cmp) {
+    const dk = diffKeys(a, b, 16);
+    h += `<div class="grid g2" style="margin-top:14px">` + card("What distinguishes A from B", `Terms with the largest difference in share (two-proportion z-test; min. ${minN} records)`, divList(dk.map(d => ({ label: pretty(d.key), a: d.pa, b: d.pb, tip: `${pretty(d.key)}: A ${pct(d.pa)} (${d.a}) · B ${pct(d.pb)} (${d.b}) · p=${d.p < .001 ? "<0.001" : fx(d.p, 3)}`, act: openAct("term", d.key) }))));
+    const fa = groupCount(a, r => r.folderTop), fb = groupCount(b, r => r.folderTop), fk = [...new Set([...fa.keys(), ...fb.keys()])].sort((x, y) => ((fb.get(y) || []).length + (fa.get(y) || []).length) - ((fb.get(x) || []).length + (fa.get(x) || []).length)).slice(0, 12);
+    h += card("Archive folders", "Share of each group's records by top-level folder", grpLegend() + barList(fk.map(k => { const va = (fa.get(k) || []).length / (a.length || 1), vb = (fb.get(k) || []).length / (b.length || 1); return { label: k, v: va, vB: vb, txt: `${pct(va, 0)} · ${pct(vb, 0)}`, act: openAct("folder", k) }; }), { paired: true })) + `</div>`;
+    return h;
+  }
+  // single: folders + worth a look
+  const fcount = groupCount(a, r => r.folderTop), folders = [...fcount.entries()].sort((x, y) => y[1].length - x[1].length).slice(0, 12);
+  const look = worthALook(a);
+  h += `<div class="grid g2" style="margin-top:14px">`;
+  h += card("Archive folders", "Top-level Daily Herald folders", barList(folders.map(([k, rs]) => ({ label: k, v: rs.length, tip: `${k}: ${fmtN(rs.length)} records`, act: openAct("folder", k) }))));
+  h += card("Worth a look", "Automatically surfaced patterns in the current selection", look.length ? `<div class="bars">${look.map(l => `<div class="bar-row" style="grid-template-columns:auto 1fr auto" data-act="${l.act}"><span class="badge ${l.cls || ""}">${l.tag}</span><span>${l.text}</span><span class="muted">›</span></div>`).join("")}</div>` : `<div class="muted">Not enough records to surface patterns (need at least ${minN} per group).</div>`);
+  h += `</div>`;
+  return h;
+}
+function worthALook(rows) {
+  const out = [], minN = state.settings.minN;
+  const tr = trendTerms(rows);
+  if (tr.list.length) {
+    const up = [...tr.list].sort((a, b) => b.slope - a.slope)[0], dn = [...tr.list].sort((a, b) => a.slope - b.slope)[0];
+    if (up && up.slope > 0) out.push({ tag: "Rising", cls: "good", text: `<b>${esc(pretty(up.key))}</b> becomes more common over time (+${(up.slope * 100).toFixed(1)} pp per decade)`, act: openAct("term", up.key) });
+    if (dn && dn.slope < 0) out.push({ tag: "Falling", cls: "bad", text: `<b>${esc(pretty(dn.key))}</b> becomes less common over time (${(dn.slope * 100).toFixed(1)} pp per decade)`, act: openAct("term", dn.key) });
+  }
+  const ck = [...countKeys(rows).values()].filter(e => e.cn >= Math.max(2, minN)).sort((a, b) => a.conf - b.conf)[0];
+  if (ck) out.push({ tag: "Low confidence", cls: "warn", text: `<b>${esc(pretty(ck.key))}</b> has the lowest mean confidence (${fx(ck.conf)}, ${ck.cn} detections)`, act: openAct("term", ck.key) });
+  const oc = new Map(); rows.forEach(r => new Set(r.other.map(d => d.term)).forEach(t => oc.set(t, (oc.get(t) || 0) + 1)));
+  const topOther = [...oc.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (topOther) out.push({ tag: "Free text", text: `<b>${esc(pretty(topOther[0]))}</b> is the most frequent free-text term (${topOther[1]} records) – a candidate for the controlled vocabulary`, act: A("tab", "vocab") });
+  const mk = groupCount(rows, r => r.makers), best = [...mk.entries()].filter(([, rs]) => rs.length >= minN).sort((a, b) => b[1].length - a[1].length)[0];
+  if (best) { const d = distinctive(best[1], rows.filter(r => !r.makerSet.has(best[0])), 1)[0]; if (d) out.push({ tag: "Maker", text: `<b>${esc(best[0])}</b> (largest maker) over-represents <b>${esc(pretty(d.key))}</b> (${pct(d.p1, 0)} vs ${pct(d.p2, 0)} elsewhere)`, act: openAct("maker", best[0]) }); }
+  const flagged = rows.filter(r => flagsFor(r).length).length;
+  if (flagged) out.push({ tag: "QA", cls: "warn", text: `<b>${fmtN(flagged)}</b> records have a pipeline flag (box issues, low confidence, missing details…)`, act: A("tab", "qa") });
+  return out;
+}
+
+// ── Vocabulary ─────────────────────────────────────────────────────
+function viewVocab() {
+  const c = ctx(), a = c.A, b = c.B, cmp = c.cmp, L = state.local, minN = state.settings.minN;
+  let h = head("Vocabulary", "Which terms the model used, how they fit the controlled vocabulary, and which free-text terms might deserve promotion.");
+  const kind = L.vocabKind, metric = L.vocabMetric;
+  const ca = countKeys(a), cb = cmp ? countKeys(b) : null;
+  const pool = [...ca.values()].filter(e => kind === "all" || (kind === "ctrl" ? e.ctrl : e.other && !e.ctrl));
+  const val = (e, rows) => !e ? 0 : metric === "rows" ? e.n / (rows.length || 1) : e.d;
+  pool.sort((x, y) => val(y, a) - val(x, a));
+  const items = pool.slice(0, 25).map(e => { const v = val(e, a), vb = cmp ? val(cb.get(e.key), b) : 0, f = metric === "rows" ? x => pct(x, 0) : fmtN; return { label: pretty(e.key), v, vB: vb, txt: cmp ? `${f(v)} · ${f(vb)}` : f(v), tip: `${pretty(e.key)} · ${taxonomyRole(e.key.split(" (")[0])} · ${fmtN(e.n)} records, ${fmtN(e.d)} detections, mean conf ${fx(e.conf)}`, act: openAct("term", e.key) }; });
+  const fullTable = table([{ h: "Term" }, { h: "Role" }, { h: "Records", num: 1 }, { h: "Share", num: 1 }, { h: "Detections", num: 1 }, { h: "Mean conf.", num: 1 }, { h: "As free text", num: 1 }],
+    pool.map(e => ({ act: openAct("term", e.key), cells: [{ v: pretty(e.key) }, { v: taxonomyRole(e.key.split(" (")[0]) }, { v: e.n, html: fmtN(e.n) }, { v: e.n / a.length, html: pct(e.n / a.length) }, { v: e.d, html: fmtN(e.d) }, { v: e.conf, html: fx(e.conf) }, { v: e.other, html: fmtN(e.other) }] })));
+  h += `<div class="grid g-2-1">`;
+  h += card("Term frequency", `${pool.length} terms · top 25 shown`, (cmp ? grpLegend() : "") + barList(items, { paired: cmp }),
+    { ctrls: seg("vocabKind", [["all", "All"], ["ctrl", "Controlled"], ["other", "Free text"]]) + seg("vocabMetric", [["rows", "% records"], ["dets", "Detections"]]), more: `<p class="sub">All ${pool.length} terms – click a column header to sort.</p>` + fullTable });
+  h += card("Vocabulary hierarchy", "Parent terms and their specific children, with record counts. Click any term.", hierarchyTree(a));
+  h += `</div>`;
+  // co-occurrence
+  const topCo = topKeys(a, 14).map(e => e.key), coMetric = L.coMetric, n = a.length;
+  const pairCount = (x, y) => a.reduce((s, r) => s + (r.keys.has(x) && r.keys.has(y) ? 1 : 0), 0);
+  const cnt = k => ca.get(k) ? ca.get(k).n : 0;
+  const cells = topCo.map(x => topCo.map(y => { if (x === y) return null; const pc = pairCount(x, y), lift = pc && n ? (pc / n) / ((cnt(x) / n) * (cnt(y) / n)) : 0; return { pc, lift }; }));
+  const maxV = Math.max(...cells.flat().filter(Boolean).map(v => coMetric === "lift" ? Math.min(v.lift, 4) : v.pc), 1);
+  const coM = matrix(topCo.map(k => ({ label: pretty(k), act: openAct("term", k) })), topCo, (i, j) => {
+    const v = cells[i][j]; if (!v) return { t: 0, txt: "", tip: "" };
+    const t = coMetric === "lift" ? Math.min(v.lift, 4) / 4 : v.pc / maxV;
+    return { t, txt: coMetric === "lift" ? (v.pc ? fx(v.lift, 1) : "") : (v.pc || ""), faint: v.pc < minN, tip: `${pretty(topCo[i])} + ${pretty(topCo[j])}: together in ${v.pc} records · lift ${fx(v.lift)} (1 = as expected by chance)`, act: A("open", "subset", JSON.stringify({ terms: [topCo[i], topCo[j]] })) };
+  }, { lo: coMetric === "lift" ? "0" : "0", hi: coMetric === "lift" ? "≥4× expected" : fmtN(maxV) });
+  // free-text candidates
+  const oc = new Map(); a.forEach(r => { const seen = new Set(); r.other.forEach(d => { if (seen.has(d.term)) return; seen.add(d.term); const e = oc.get(d.term) || { n: 0, conf: [] }; e.n++; if (Number.isFinite(d.conf)) e.conf.push(d.conf); oc.set(d.term, e); }); });
+  const cand = [...oc.entries()].sort((x, y) => y[1].n - x[1].n).slice(0, 60).map(([t, e]) => { const nc = nearestControlled(t); const sugg = nc.sim >= .85 ? `alias of <b>${esc(pretty(nc.term))}</b>` : e.n >= minN ? `new term?` : `keep as free text`; return { act: openAct("term", t), cells: [{ v: pretty(t) }, { v: e.n, html: fmtN(e.n) }, { v: mean(e.conf), html: fx(mean(e.conf)) }, { v: nc.term, html: `${esc(pretty(nc.term))} <span class="muted">(${fx(nc.sim)})</span>` }, { v: sugg, html: sugg }] }; });
+  h += `<div class="grid g2" style="margin-top:14px">`;
+  h += card("Term co-occurrence", coMetric === "lift" ? "How much more often two terms appear together than chance would predict. Click a cell to see those records." : "Number of records containing both terms. Click a cell to see those records.", coM, { ctrls: seg("coMetric", [["lift", "Lift"], ["count", "Count"]]) });
+  h += card("Free-text terms & promotion candidates", `Terms outside the controlled vocabulary, with the nearest controlled term. Suggestions use similarity ≥0.85 → alias, ≥${minN} records → new term.`,
+    table([{ h: "Free-text term" }, { h: "Records", num: 1 }, { h: "Mean conf.", num: 1 }, { h: "Nearest controlled" }, { h: "Suggestion" }], cand));
+  h += `</div>`;
+  // taxonomy health (details)
+  const dets = a.flatMap(r => r.controlled), fb = dets.filter(d => FALLBACK_TERMS.has(d.term)), req = dets.filter(d => TERMS_REQUIRING_DETAIL.has(d.term)), miss = req.filter(d => !d.detail);
+  const fbc = new Map(); fb.forEach(d => fbc.set(d.term, (fbc.get(d.term) || 0) + 1));
+  const vv = new Map(); a.forEach(r => vv.set(r.versions.vocabulary || "(none)", (vv.get(r.versions.vocabulary || "(none)") || 0) + 1));
+  h += `<div style="margin-top:14px">` + card("Taxonomy health", "How often the model falls back on general parent terms, and whether required details are present.",
+    `<div class="kpis">${kpi("General-term detections", pct(dets.length ? fb.length / dets.length : NaN), `${fmtN(fb.length)} of ${fmtN(dets.length)} controlled`)}${kpi("Missing required detail", fmtN(miss.length), `of ${fmtN(req.length)} detections that need one`)}${kpi("Vocabulary versions", [...vv.keys()].map(esc).join(", "), [...vv.values()].map(fmtN).join(" / ") + " records")}</div>`,
+    { more: `<div class="grid g2"><div><h3 style="font-size:13px">General (parent) terms used</h3>${barList([...fbc.entries()].sort((x, y) => y[1] - x[1]).map(([t, n]) => ({ label: pretty(t), v: n, act: openAct("term", t) })))}</div><div><h3 style="font-size:13px">Record-level validation notes</h3>${barList(noteCounts(a).slice(0, 12).map(([t, n]) => ({ label: t, v: n, tip: t })))}</div></div>` }) + `</div>`;
+  return h;
+}
+function noteCounts(rows) { const m = new Map(); rows.forEach(r => new Set(r.noteClasses).forEach(n => m.set(n, (m.get(n) || 0) + 1))); return [...m.entries()].sort((a, b) => b[1] - a[1]); }
+function hierarchyTree(rows) {
+  const tc = new Map(), dc = new Map();
+  rows.forEach(r => { new Set(r.dets.map(d => d.term)).forEach(t => tc.set(t, (tc.get(t) || 0) + 1)); new Set(r.dets.filter(d => d.detail).map(d => d.expr)).forEach(e => dc.set(e, (dc.get(e) || 0) + 1)); });
+  const roots = Object.keys(CHILDREN).filter(p => !TERM_PARENTS[p]);
+  const subtotal = t => (tc.get(t) || 0) + (CHILDREN[t] || []).reduce((s, c) => s + subtotal(c), 0);
+  const node = (t, depth) => {
+    const kids = (CHILDREN[t] || []).filter(k => subtotal(k) > 0).sort((a, b) => subtotal(b) - subtotal(a));
+    const details = [...dc.entries()].filter(([e]) => e.startsWith(t + " (")).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    const line = `<span data-act="${openAct("term", t)}" style="cursor:pointer"><b>${esc(pretty(t))}</b></span> <span class="muted">${fmtN(tc.get(t) || 0)}${kids.length ? ` · ${fmtN(subtotal(t))} incl. children` : ""}</span>`;
+    const inner = kids.map(k => node(k, depth + 1)).join("") + (details.length ? `<div class="tchips" style="margin:3px 0 6px 14px">${details.map(([e, n]) => `<span class="tchip" data-act="${openAct("term", e)}">${esc(e.slice(t.length + 2, -1))} · ${n}</span>`).join("")}</div>` : "");
+    return inner ? `<details style="margin-left:${depth ? 14 : 0}px" ${depth === 0 && subtotal(t) === Math.max(...roots.map(subtotal)) ? "open" : ""}><summary style="cursor:pointer">${line}</summary>${inner}</details>` : `<div style="margin-left:${depth ? 28 : 14}px">${line}</div>`;
+  };
+  const used = roots.filter(r => subtotal(r) > 0).sort((a, b) => subtotal(b) - subtotal(a));
+  return used.length ? `<div style="font-size:13px;max-height:560px;overflow:auto">${used.map(r => node(r, 0)).join("")}</div>` : `<div class="muted">No hierarchical terms in selection.</div>`;
+}
+
+// ── People & Time ──────────────────────────────────────────────────
+const SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"];
+const SERIES_D = ["#3987e5", "#d95926", "#199e70", "#c98500"];
+const seriesColor = i => (isDark() ? SERIES_D : SERIES)[i % 4];
+function viewPeople() {
+  const c = ctx(), a = c.A, b = c.B, cmp = c.cmp, L = state.local, minN = state.settings.minN;
+  let h = head("People & Time", "How the photographs – and what they show – vary by maker and over time.");
+  const decs = state.idx.decades.filter(d => d !== "unknown");
+  // trend chart
+  if (!L.trendInit) { L.trendTerms = topKeys(a, 3).map(e => e.key); L.trendInit = true; }
+  const tt = cmp ? L.trendTerms.slice(0, 1) : L.trendTerms.slice(0, 4);
+  const byA = groupCount(a, r => r.decade), byB = cmp ? groupCount(b, r => r.decade) : null;
+  const shareSeries = (by, k) => decs.map(d => { const rs = by.get(d) || []; return rs.length ? rs.filter(r => r.keys.has(k)).length / rs.length : null; });
+  const faint = by => decs.map(d => (by.get(d) || []).length < minN);
+  const notes = by => decs.map(d => `(n=${(by.get(d) || []).length})`);
+  let series = [];
+  if (cmp && tt[0]) series = [{ name: `A · ${pretty(tt[0])}`, color: "var(--grpA)", values: shareSeries(byA, tt[0]), faint: faint(byA), notes: notes(byA) }, { name: `B · ${pretty(tt[0])}`, color: "var(--grpB)", values: shareSeries(byB, tt[0]), faint: faint(byB), notes: notes(byB) }];
+  else series = tt.map((k, i) => ({ name: pretty(k), color: seriesColor(i), values: shareSeries(byA, k), faint: faint(byA), notes: notes(byA) }));
+  const termPicker = `<div class="chips">${L.trendTerms.slice(0, cmp ? 1 : 4).map((k, i) => `<span class="chip" style="background:transparent;border-color:${cmp ? "var(--border-strong)" : seriesColor(i)};color:var(--text)">${esc(pretty(k))}<button class="x" data-act="${A("trendrm", k)}">×</button></span>`).join("")}<input class="inline-input" list="termList" id="trendAdd" placeholder="add term…" style="width:130px"></div>`;
+  h += `<div class="grid g-2-1">`;
+  h += card("Term share over time", `Share of each decade's records containing the term${cmp ? " (one term at a time in compare mode)" : " (up to 4)"}. Hollow points = fewer than ${minN} records that decade. Click a decade to open it.`,
+    termPicker + (decs.length ? lineChart(series, decs.map(d => d + "s"), { actX: x => openAct("decade", x.slice(0, 4)) }) : `<div class="muted">No dated records.</div>`));
+  const tr = trendTerms(a);
+  const up = [...tr.list].sort((x, y) => y.slope - x.slope).slice(0, 6).filter(x => x.slope > 0), dn = [...tr.list].sort((x, y) => x.slope - y.slope).slice(0, 6).filter(x => x.slope < 0);
+  const tl = arr => arr.map(x => `<div class="bar-row" style="grid-template-columns:1fr auto" data-act="${A("trendset", x.key)}" data-tip="Plot ${esc(pretty(x.key))} over time"><span class="lbl">${esc(pretty(x.key))}</span><span class="val">${x.slope > 0 ? "+" : ""}${(x.slope * 100).toFixed(1)} pp/decade</span></div>`).join("");
+  h += card("Rising & falling terms", tr.decs.length >= 3 ? `Linear trend in share across ${tr.decs.length} decades with ≥${minN} records. Click to plot.` : "Needs at least 3 decades with enough records.",
+    tr.list.length ? `<h3 style="font-size:12.5px;margin:4px 0">Rising</h3><div class="bars">${tl(up) || '<span class="muted">none</span>'}</div><h3 style="font-size:12.5px;margin:10px 0 4px">Falling</h3><div class="bars">${tl(dn) || '<span class="muted">none</span>'}</div>` : `<div class="muted">Not enough dated records.</div>`);
+  h += `</div>`;
+  // makers table
+  const mk = groupCount(a, r => r.makers.length ? r.makers : ["(no maker)"]);
+  const makers = [...mk.entries()].sort((x, y) => y[1].length - x[1].length);
+  const mrows = makers.slice(0, 80).map(([m, rs]) => { const ys = rs.map(r => r.year).filter(Boolean); const d = m === "(no maker)" ? [] : distinctive(rs, a.filter(r => !r.makerSet.has(m)), 3); return { act: m === "(no maker)" ? "" : openAct("maker", m), cells: [{ v: m, html: esc(m) + smallTag(rs.length) }, { v: rs.length, html: fmtN(rs.length) }, { v: ys.length ? Math.min(...ys) : "", html: ys.length ? `${Math.min(...ys)}–${Math.max(...ys)}` : "–" }, { v: d.map(x => x.key).join(" "), html: `<div class="tchips">${d.map(x => `<span class="tchip">${esc(pretty(x.key))}</span>`).join("")}</div>` }] }; });
+  // matrix
+  const by = L.matrixBy, topT = topKeys(a, 15).map(e => e.key);
+  let groups;
+  if (by === "maker") groups = makers.filter(([m]) => m !== "(no maker)").slice(0, 14).map(([m, rs]) => ({ label: m, rows: rs, act: openAct("maker", m), f: { makers: [m] } }));
+  else groups = decs.map(d => ({ label: d + "s", rows: byA.get(d) || [], act: openAct("decade", d), f: { decades: [d] } })).filter(g => g.rows.length);
+  const M = groups.length && topT.length ? matrix(groups.map(g => ({ label: `${g.label} (${g.rows.length})`, title: g.label, act: g.act })), topT, (i, j) => { const g = groups[i], cnt = g.rows.filter(r => r.keys.has(topT[j])).length, s = cnt / (g.rows.length || 1); return { t: s, txt: cnt ? Math.round(s * 100) : "", faint: g.rows.length < minN, tip: `${g.label} · ${pretty(topT[j])}: ${cnt} of ${g.rows.length} records (${pct(s)})`, act: A("open", "subset", JSON.stringify(Object.assign({ terms: [topT[j]] }, g.f))) }; }, { lo: "0%", hi: "100%" }) : `<div class="muted">No data.</div>`;
+  h += `<div class="grid g2" style="margin-top:14px">`;
+  h += card("Makers", `${fmtN(makers.length)} makers after standardisation · distinctive terms = over-represented vs other makers`, table([{ h: "Maker" }, { h: "Records", num: 1 }, { h: "Years" }, { h: "Distinctive terms" }], mrows), { ctrls: `<button class="btn small" data-act="prepare">Standardise names</button>` });
+  h += card(by === "maker" ? "Maker × term" : "Decade × term", "Percentage of each group's records containing the term. Faded rows have fewer than " + minN + " records. Click a cell for those records.", M, { ctrls: seg("matrixBy", [["maker", "By maker"], ["decade", "By decade"]]) });
+  h += `</div>`;
+  // coverage
+  const cov = [["Maker", r => r.makers.length], ["Year", r => r.year], ["Folder", r => r.folder.length], ["Transcription", r => r.transcription], ["Image link", r => r.imageUrl]];
+  const conc = arr => { const n = sum(arr); if (!n) return { eff: 0, top1: 0 }; const sh = arr.map(x => x / n).sort((x, y) => y - x); const hhi = sum(sh.map(x => x * x)); return { eff: 1 / hhi, top1: sh[0] }; };
+  const cm = conc(makers.filter(([m]) => m !== "(no maker)").map(([, rs]) => rs.length)), cf = conc([...groupCount(a, r => r.folderTop).values()].map(rs => rs.length));
+  h += `<div style="margin-top:14px">` + card("Metadata coverage & sample concentration", "How complete the metadata is, and whether a few makers or folders dominate the selection.",
+    `<div class="kpis">${cov.map(([l, fn]) => kpi(l, pct(a.length ? a.filter(fn).length / a.length : NaN, 0), "of records")).join("")}${kpi("Effective no. of makers", fx(cm.eff, 1), `largest = ${pct(cm.top1, 0)}`)}${kpi("Effective no. of folders", fx(cf.eff, 1), `largest = ${pct(cf.top1, 0)}`)}</div>`,
+    { more: `<p class="sub">“Effective number” = 1 / Herfindahl index: the number of equally sized groups that would give the same concentration. Low values mean a few groups dominate and comparisons may reflect them rather than the archive as a whole.</p>` }) + `</div>`;
+  return h;
+}
+
+// ── Composition ────────────────────────────────────────────────────
+function viewComposition() {
+  const c = ctx(), a = c.A, b = c.B, cmp = c.cmp, L = state.local, minN = state.settings.minN;
+  if (!L.compTerm || !state.idx.keyCounts.has(L.compTerm)) L.compTerm = (state.filters.A.terms[0] && state.idx.keyCounts.has(state.filters.A.terms[0])) ? state.filters.A.terms[0] : (topKeys(a, 1)[0] || {}).key || "";
+  const t = L.compTerm;
+  let h = head("Composition", "Where things sit in the frame – based on normalised bounding boxes.");
+  const dets = rows => rows.flatMap(r => (r.keyDets.get(t) || []).filter(d => d.geom.valid));
+  const da = dets(a), db = cmp ? dets(b) : [];
+  const picker = `<label class="dim" style="font-size:13px">Term <input class="inline-input" list="termList" id="compPick" value="${esc(t)}" style="width:170px"></label>`;
+  const heatBlock = (ds, tag) => `<div class="heat"><canvas data-heat="${tag}" width="200" height="200"></canvas><div class="cap">${tag.startsWith("B") ? "Group B" : cmp ? "Group A" : ""} ${tag.endsWith("occ") ? "box coverage" : "centre points"} · ${fmtN(ds.length)} boxes</div></div>`;
+  const regions = ds => { const g = new Array(9).fill(0); ds.forEach(d => { const i = Math.min(2, Math.floor(d.geom.cy * 3)), j = Math.min(2, Math.floor(d.geom.cx * 3)); g[i * 3 + j]++; }); const mx = Math.max(...g, 1); return `<div class="regions">${g.map(v => `<div style="${cellStyle(v / mx)}" data-tip="${fmtN(v)} boxes (${pct(ds.length ? v / ds.length : 0, 0)})">${pct(ds.length ? v / ds.length : 0, 0)}</div>`).join("")}</div>`; };
+  const geo = ds => { const ar = ds.map(d => d.geom.area); return `<dl class="kv"><dt>Median area</dt><dd>${pct(median(ar))} of frame</dd><dt>Touching edge</dt><dd>${pct(ds.length ? ds.filter(d => d.geom.edge).length / ds.length : NaN, 0)}</dd><dt>Full-frame (≥90%)</dt><dd>${pct(ds.length ? ds.filter(d => d.geom.fullFrame).length / ds.length : NaN, 0)}</dd><dt>Median distance from centre</dt><dd>${fx(median(ds.map(d => centreDist(d.geom))))} <span class="muted">(0 = centre, 1 = corner)</span></dd></dl>`; };
+  pendingHeat = { A: da, B: db };
+  let body = `<div class="heat-wrap">${heatBlock(da, "Aocc")}${heatBlock(da, "Acen")}${cmp ? heatBlock(db, "Bocc") + heatBlock(db, "Bcen") : ""}</div>`;
+  body += `<div class="grid ${cmp ? "g2" : "g2"}" style="margin-top:12px"><div><h3 style="font-size:13px;margin:0 0 6px">3 × 3 regions (by box centre)${cmp ? " · A" : ""}</h3>${regions(da)}</div><div><h3 style="font-size:13px;margin:0 0 6px">Geometry${cmp ? " · A" : ""}</h3>${geo(da)}</div>${cmp ? `<div><h3 style="font-size:13px;margin:0 0 6px">3 × 3 regions · B</h3>${regions(db)}</div><div><h3 style="font-size:13px;margin:0 0 6px">Geometry · B</h3>${geo(db)}</div>` : ""}</div>`;
+  const edges = [0, .01, .02, .05, .1, .2, .35, .5, .75, 1.01], lab = ["<1%", "1–2", "2–5", "5–10", "10–20", "20–35", "35–50", "50–75", "75–100%"];
+  const hist = ds => edges.slice(0, -1).map((e, i) => ds.filter(d => d.geom.area >= e && d.geom.area < edges[i + 1]).length);
+  const ha = hist(da), hb = hist(db);
+  const more = `<h3 style="font-size:13px">Box area distribution (% of frame)</h3>${cmp ? grpLegend() : ""}${colChart(lab.map((l, i) => ({ label: l, v: cmp ? ha[i] / (da.length || 1) : ha[i], vB: hb[i] / (db.length || 1), tip: `${l}: ${ha[i]}${cmp ? " · B " + hb[i] : ""} boxes` })), { paired: cmp, h: 110 })}`;
+  h += card(`Placement of “${esc(pretty(t))}”`, "Left: how often each point of the frame is covered by a box. Right: density of box centres. Darker = more.", body, { ctrls: picker, more });
+  // principal subject + prominence
+  const ps = new Map(); a.forEach(r => { if (r.principal) { const k = state.settings.termKey === "expr" ? r.principal.expr : r.principal.term; ps.set(k, (ps.get(k) || 0) + 1); } });
+  const prom = [...countKeys(a).values()].filter(e => e.n >= minN).map(e => { const ds = a.flatMap(r => (r.keyDets.get(e.key) || []).filter(d => d.geom.valid)); return { key: e.key, area: median(ds.map(d => d.geom.area)), n: e.n }; }).sort((x, y) => y.area - x.area).slice(0, 12);
+  h += `<div class="grid g2" style="margin-top:14px">`;
+  h += card("Probable principal subject", "Per image, the controlled term with the highest score of area × centrality × confidence.", barList([...ps.entries()].sort((x, y) => y[1] - x[1]).slice(0, 12).map(([k, n]) => ({ label: pretty(k), v: n, tip: `${pretty(k)} is the probable main subject in ${n} records`, act: A("compset", k) }))));
+  h += card("Most visually prominent terms", `Median box area (terms with ≥${minN} records)`, barList(prom.map(p => ({ label: pretty(p.key), v: p.area, txt: pct(p.area, 0), act: A("compset", p.key) }))));
+  h += `</div>`;
+  // pair relationship
+  if (!L.pairA) { const tk = topKeys(a, 2); L.pairA = tk[0] ? tk[0].key : ""; L.pairB = tk[1] ? tk[1].key : ""; }
+  const rel = pairRelations(a, L.pairA, L.pairB);
+  h += `<div style="margin-top:14px">` + card("Spatial relationship between two terms", "For images containing both, where is the first term relative to the second? (closest pair of boxes per image)",
+    `<div class="frow" style="margin-bottom:8px"><input class="inline-input" list="termList" id="pairA" value="${esc(L.pairA)}" style="width:170px"><span class="muted">relative to</span><input class="inline-input" list="termList" id="pairB" value="${esc(L.pairB)}" style="width:170px"><span class="muted">${fmtN(rel.n)} images with both</span></div>` +
+    (rel.n ? `<div class="grid g2"><div>${barList(rel.list.map(([k, v]) => ({ label: k, v, txt: pct(v / rel.n, 0) })))}</div><div>${thumbStrip(rel.rows, 8)}</div></div>` : `<div class="muted">No images contain both terms.</div>`)) + `</div>`;
+  return h;
+}
+let pendingHeat = null;
+function pairRelations(rows, ta, tb) {
+  const res = new Map(), hits = [];
+  const inc = k => res.set(k, (res.get(k) || 0) + 1);
+  rows.forEach(r => {
+    const A_ = (r.keyDets.get(ta) || []).filter(d => d.geom.valid), B_ = (r.keyDets.get(tb) || []).filter(d => d.geom.valid);
+    if (!A_.length || !B_.length || ta === tb) return;
+    let best = null, bd = Infinity; A_.forEach(x => B_.forEach(y => { const dd = Math.hypot(x.geom.cx - y.geom.cx, x.geom.cy - y.geom.cy); if (dd < bd) { bd = dd; best = [x, y]; } }));
+    const [x, y] = best, bx = x.geom.box, by = y.geom.box; hits.push(r);
+    if (bx[0] >= by[0] && bx[1] >= by[1] && bx[2] <= by[2] && bx[3] <= by[3]) return inc(`inside ${pretty(tb)}`);
+    if (by[0] >= bx[0] && by[1] >= bx[1] && by[2] <= bx[2] && by[3] <= bx[3]) return inc(`contains ${pretty(tb)}`);
+    const dx = x.geom.cx - y.geom.cx, dy = x.geom.cy - y.geom.cy;
+    if (iou(bx, by) > .3) return inc("overlapping");
+    inc(Math.abs(dy) > Math.abs(dx) ? (dy < 0 ? "above" : "below") : (dx < 0 ? "left of" : "right of"));
+  });
+  return { n: hits.length, rows: hits, list: [...res.entries()].sort((a, b) => b[1] - a[1]) };
+}
+function drawHeat(canvas, ds, mode) {
+  const ctx2 = canvas.getContext("2d"), N = mode === "occ" ? 50 : 25, W = canvas.width, g = new Float32Array(N * N);
+  ds.forEach(d => {
+    if (mode === "occ") { const [y1, x1, y2, x2] = d.geom.box; for (let i = Math.floor(y1 / 1000 * N); i < Math.ceil(y2 / 1000 * N); i++) for (let j = Math.floor(x1 / 1000 * N); j < Math.ceil(x2 / 1000 * N); j++) g[i * N + j]++; }
+    else { const i = Math.min(N - 1, Math.floor(d.geom.cy * N)), j = Math.min(N - 1, Math.floor(d.geom.cx * N)); g[i * N + j]++; }
+  });
+  const mx = Math.max(...g, 1), ramp = [0, 1, 2, 3, 4, 5, 6, 7].map(k => cssVar("--seq-" + k));
+  const hex = s => { const m = s.replace("#", ""); return [0, 2, 4].map(i => parseInt(m.substr(i, 2), 16)); };
+  const R = ramp.map(hex), cs = W / N;
+  ctx2.fillStyle = cssVar("--surface-2"); ctx2.fillRect(0, 0, W, W);
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const v = g[i * N + j] / mx; if (!v) continue; const p = Math.sqrt(v) * 7, lo = Math.floor(p), hi = Math.min(7, lo + 1), f = p - lo; const c = R[lo].map((x, k) => Math.round(x + (R[hi][k] - x) * f)); ctx2.fillStyle = `rgb(${c})`; ctx2.fillRect(j * cs, i * cs, cs + .5, cs + .5); }
+  ctx2.strokeStyle = cssVar("--border-strong"); ctx2.lineWidth = 1; ctx2.setLineDash([3, 3]);
+  [1, 2].forEach(k => { ctx2.beginPath(); ctx2.moveTo(k * W / 3, 0); ctx2.lineTo(k * W / 3, W); ctx2.moveTo(0, k * W / 3); ctx2.lineTo(W, k * W / 3); ctx2.stroke(); });
+}
+
+// ── Text ↔ Image ───────────────────────────────────────────────────
+const STOP = new Set("the a an and of to in on at for with by from is was are be as it its this that or not no photo photograph photographs print daily herald ltd limited copyright reproduction fee please return picture pictures supplied news agency press".split(" "));
+function viewText() {
+  const c = ctx(), a = c.A, minN = state.settings.minN;
+  const withT = a.filter(r => r.transcription);
+  let h = head("Text ↔ Image", "How the transcribed text on the backs relates to what was detected on the fronts.");
+  const per = new Map();
+  withT.forEach(r => r.keyDets.forEach((ds, k) => { const e = per.get(k) || { n: 0, m: 0 }; e.n++; if (ds.some(d => textMatches(r.corpus, d))) e.m++; per.set(k, e); }));
+  const rowsMatch = withT.filter(r => [...r.keyDets.values()].some(ds => ds.some(d => textMatches(r.corpus, d))));
+  const lens = withT.map(r => wordTokens(r.transcription).length), nt = withT.map(r => r.keys.size);
+  h += `<div class="kpis">${kpi("Records with transcription", pct(a.length ? withT.length / a.length : NaN, 0), `${fmtN(withT.length)} of ${fmtN(a.length)}`)}${kpi("Text mentions a detected term", pct(withT.length ? rowsMatch.length / withT.length : NaN, 0), "of transcribed records")}${kpi("Median transcription length", fmtN(median(lens)), "words")}${kpi("Length ↔ no. of terms", "r = " + fx(pearson(lens, nt)), "Pearson correlation")}</div>`;
+  const list = [...per.entries()].filter(([, e]) => e.n >= minN).map(([k, e]) => ({ k, ...e, rate: e.m / e.n })).sort((x, y) => y.rate - x.rate || y.n - x.n);
+  const words = new Map(); withT.forEach(r => new Set(wordTokens(r.transcription).filter(w => w.length > 2 && !/^\d+$/.test(w) && !STOP.has(w))).forEach(w => words.set(w, (words.get(w) || 0) + 1)));
+  const topW = [...words.entries()].sort((x, y) => y[1] - x[1]).slice(0, 20);
+  h += `<div class="grid g2">`;
+  h += card("Terms most often named in the text", `Share of transcribed records with the term where the text also mentions it (≥${minN} records)`, barList(list.slice(0, 15).map(e => ({ label: pretty(e.k), v: e.rate, txt: `${pct(e.rate, 0)} <span class="muted">of ${e.n}</span>`, act: openAct("term", e.k) }))),
+    { more: table([{ h: "Term" }, { h: "Transcribed records", num: 1 }, { h: "Mentioned", num: 1 }, { h: "Rate", num: 1 }], list.map(e => ({ act: openAct("term", e.k), cells: [{ v: pretty(e.k) }, { v: e.n, html: fmtN(e.n) }, { v: e.m, html: fmtN(e.m) }, { v: e.rate, html: pct(e.rate) }] }))) });
+  h += card("Frequent words in transcriptions", "Click a word to filter records whose title or transcription contains it", barList(topW.map(([w, n]) => ({ label: w, v: n, tip: `“${w}” appears in ${n} transcriptions`, act: A("filter", "text", w) }))));
+  h += `</div>`;
+  const rarely = [...list].sort((x, y) => x.rate - y.rate || y.n - x.n).slice(0, 12);
+  h += `<div style="margin-top:14px">` + card("Detected but rarely mentioned", "Visual elements that the captions almost never name – often background or incidental content.", barList(rarely.map(e => ({ label: pretty(e.k), v: e.rate, txt: `${pct(e.rate, 0)} <span class="muted">of ${e.n}</span>`, act: openAct("term", e.k) })), { max: 1 })) + `</div>`;
+  return h;
+}
+
+// ── Pipeline QA ────────────────────────────────────────────────────
+function flagsFor(r) {
+  const f = [];
+  if (r.invalidBoxes) f.push(["invalid box", "bad"]);
+  if (r.dupes) f.push(["duplicate boxes", "warn"]);
+  if (r.leaks) f.push(["parent+child overlap", "warn"]);
+  if (r.missingDetail) f.push(["missing detail", "warn"]);
+  if (r.fullFrame) f.push(["full-frame box", ""]);
+  if (!r.all.length) f.push(["no detections", "bad"]);
+  if (Number.isFinite(r.minConf) && r.minConf < .5) f.push(["confidence < 0.5", "warn"]);
+  if (r.finish && !["STOP", "(none)"].includes(r.finish)) f.push(["finish: " + r.finish, "bad"]);
+  if (r.error) f.push(["error", "bad"]);
+  if (r.attempts > 1) f.push([`${r.attempts} attempts`, ""]);
+  return f;
+}
+function viewQA() {
+  const c = ctx(), a = c.A, L = state.local, minN = state.settings.minN, unproc = state.A.all.length - state.A.rows.length;
+  let h = head("Pipeline QA", "Checks on the extraction run itself – confidence, box geometry, validation, cost and speed.");
+  const confs = a.flatMap(r => r.dets.map(d => d.conf)).filter(Number.isFinite), costs = a.map(r => r.cost), durs = a.map(r => r.duration).filter(x => x > 0);
+  const flagged = a.map(r => ({ r, f: flagsFor(r) })).filter(x => x.f.length);
+  const vl = groupCount(a, r => r.validationLevel);
+  h += `<div class="kpis">${kpi("Processed records", fmtN(a.length), unproc ? `${fmtN(unproc)} unprocessed rows skipped` : "all rows processed")}${kpi("Flagged records", fmtN(flagged.length), pct(a.length ? flagged.length / a.length : NaN, 0))}${kpi("Mean confidence", fx(mean(confs)), `${fmtN(confs.length)} detections`)}${kpi("Validation", [...vl.entries()].map(([k, v]) => `${esc(k)} ${pct(v.length / (a.length || 1), 0)}`).join("<br>").replace(/^/, '<span style="font-size:14px;line-height:1.3;display:block">') + "</span>")}${kpi("Total cost", usd(sum(costs)), `mean ${usd(mean(costs))} / image`)}${kpi("Median duration", fx(median(durs), 1) + " s", `p95 ${fx(quantile(durs, .95), 1)} s`)}</div>`;
+  // confidence histogram + lowest terms
+  const edges = [0, .5, .6, .7, .8, .85, .9, .95, 1.001], lab = ["<.5", ".5–.6", ".6–.7", ".7–.8", ".8–.85", ".85–.9", ".9–.95", "≥.95"];
+  const ch = edges.slice(0, -1).map((e, i) => confs.filter(v => v >= e && v < edges[i + 1]).length);
+  const low = [...countKeys(a).values()].filter(e => e.cn >= 2).sort((x, y) => x.conf - y.conf).slice(0, 12);
+  h += `<div class="grid g2">`;
+  h += card("Detection confidence", "Distribution of confidence scores across all detections", colChart(lab.map((l, i) => ({ label: l, v: ch[i], tip: `${l}: ${fmtN(ch[i])} detections` }))), { more: `<h3 style="font-size:13px">Lowest-confidence terms (≥2 detections)</h3>` + barList(low.map(e => ({ label: pretty(e.key), v: e.conf, txt: fx(e.conf), act: openAct("term", e.key), small: e.cn < minN })), { max: 1 }) });
+  const issues = [["Invalid boxes", r => r.invalidBoxes], ["Duplicate boxes (IoU > .7)", r => r.dupes], ["Parent + child on same object", r => r.leaks], ["Missing required detail", r => r.missingDetail], ["Full-frame boxes", r => r.fullFrame], ["Tiny boxes (<0.1%)", r => r.tiny], ["No detections", r => !r.all.length]];
+  h += card("Box & taxonomy issues", "Records affected by each issue. Click to filter the list below.", barList(issues.map(([l, fn]) => { const n = a.filter(fn).length; return { label: l, v: n, txt: `${fmtN(n)} <span class="muted">${pct(a.length ? n / a.length : 0, 0)}</span>`, act: A("local", "flagFilter", l) }; })));
+  h += `</div>`;
+  // flagged list
+  const issueFn = Object.fromEntries(issues);
+  const shownFlag = L.flagFilter && issueFn[L.flagFilter] ? a.filter(issueFn[L.flagFilter]).map(r => ({ r, f: flagsFor(r) })) : flagged;
+  h += `<div style="margin-top:14px">` + card(`Flagged records${L.flagFilter ? ` · ${esc(L.flagFilter)}` : ""}`, "Click a record to inspect its image, boxes and notes.",
+    (L.flagFilter ? `<button class="btn small" data-act="${A("local", "flagFilter", "")}" style="margin-bottom:8px">Show all flags</button>` : "") +
+    table([{ h: "Record" }, { h: "Year" }, { h: "Flags" }, { h: "Min conf.", num: 1 }, { h: "Terms", num: 1 }], shownFlag.slice(0, 300).map(({ r, f }) => ({ act: openAct("record", r.uid), cells: [{ v: r.title, html: `${esc(r.title)}<div class="mono muted">${esc(r.uid)}</div>` }, { v: r.year || "" }, { v: f.length, html: f.map(([t, c]) => `<span class="badge ${c}">${esc(t)}</span>`).join(" ") }, { v: r.minConf, html: fx(r.minConf) }, { v: r.keys.size }] })))) + `</div>`;
+  // cost, validation notes, provenance
+  const fin = groupCount(a, r => r.finish), mod = groupCount(a, r => r.model || "(none)"), ver = groupCount(a, r => `pipeline ${r.versions.pipeline || "?"} · prompt ${r.versions.prompt || "?"} · schema ${r.versions.schema || "?"} · vocab ${r.versions.vocabulary || "?"}`);
+  const cup = tukeyUpper(costs), dup = tukeyUpper(durs);
+  const N = L.projN, m = mean(costs), se = sd(costs) / Math.sqrt(costs.length || 1), dm = mean(durs);
+  h += `<div class="grid g2" style="margin-top:14px">`;
+  h += card("Cost & speed", "Per-image estimates from the run log", `<div class="grid g2"><div>${colChart(histBins(costs, 8, usd))}<div class="muted" style="font-size:12px;margin-top:4px">Cost per image · ${a.filter(r => r.cost > cup).length} outliers above ${usd(cup)}</div></div><div>${colChart(histBins(durs, 8, v => fx(v, 1) + "s"))}<div class="muted" style="font-size:12px;margin-top:4px">Duration per image · ${a.filter(r => r.duration > dup).length} outliers above ${fx(dup, 1)} s</div></div></div>
+    <div class="takeaway">Projection for <input type="number" class="inline-input" id="projN" value="${N}" style="width:110px" min="1"> images: <b>${usd(m * N)}</b> <span class="muted">(95% CI ${usd((m - 1.96 * se) * N)}–${usd((m + 1.96 * se) * N)})</span> and about <b>${fx(dm * N / 3600, 1)} h</b> sequential processing.</div>`,
+    { more: `<dl class="kv"><dt>Mean input tokens</dt><dd>${fmtN(mean(a.map(r => r.inTokens)))}</dd><dt>Mean output tokens</dt><dd>${fmtN(mean(a.map(r => r.outTokens)))}</dd><dt>Mean thinking tokens</dt><dd>${fmtN(mean(a.map(r => r.thoughts)))}</dd><dt>Cost ↔ no. of terms</dt><dd>r = ${fx(pearson(costs, a.map(r => r.keys.size)))}</dd><dt>Duration ↔ no. of terms</dt><dd>r = ${fx(pearson(a.map(r => r.duration), a.map(r => r.keys.size)))}</dd></dl>` });
+  h += card("Validation notes & provenance", "What the validator changed, and which model/versions produced the data", `<h3 style="font-size:13px;margin:0 0 4px">Validation notes (records affected)</h3>${barList(noteCounts(a).slice(0, 10).map(([t, n]) => ({ label: t, v: n, tip: t })))}`,
+    { more: `<h3 style="font-size:13px">Finish reasons</h3>${barList([...fin.entries()].map(([k, v]) => ({ label: k, v: v.length })))}<h3 style="font-size:13px">Models</h3>${barList([...mod.entries()].map(([k, v]) => ({ label: k, v: v.length })))}<h3 style="font-size:13px">Versions</h3>${barList([...ver.entries()].map(([k, v]) => ({ label: k, v: v.length })))}` });
+  h += `</div>`;
+  return h;
+}
+function histBins(vals, n, f) {
+  if (!vals.length) return [];
+  const lo = Math.min(...vals), hi = Math.max(...vals); if (hi === lo) return [{ label: f(lo), v: vals.length }];
+  const w = (hi - lo) / n; return Array.from({ length: n }, (_, i) => { const a = lo + i * w, b = i === n - 1 ? hi + 1e-12 : a + w; const c = vals.filter(v => v >= a && v < b).length; return { label: f(a), v: c, tip: `${f(a)} – ${f(a + w)}: ${c}` }; });
+}
+
+// ── Run comparison (second file) ───────────────────────────────────
+function runMatch() {
+  if (!state.B) return null;
+  const bmap = new Map(state.B.rows.map(r => [r.uid, r]));
+  const ids = new Set(ctx().A.map(r => r.uid));
+  const pairs = ctx().A.filter(r => bmap.has(r.uid)).map(r => { const b = bmap.get(r.uid); const u = new Set([...r.keys, ...b.keys]); const inter = [...r.keys].filter(k => b.keys.has(k)).length; return { a: r, b, j: u.size ? inter / u.size : 1, onlyA: [...r.keys].filter(k => !b.keys.has(k)), onlyB: [...b.keys].filter(k => !r.keys.has(k)) }; });
+  return { pairs, onlyA: ctx().A.filter(r => !bmap.has(r.uid)), onlyB: (() => { const aIds = new Set(state.A.rows.map(x => x.uid)); return state.B.rows.filter(r => !aIds.has(r.uid)); })(), bmap, ids };
+}
+function viewRuns() {
+  const m = runMatch(); if (!m) return head("Run comparison", "Load a second file to compare two extraction runs.");
+  const P = m.pairs;
+  let h = head("Run comparison", `File A: <b>${esc(state.A.name)}</b> vs file B: <b>${esc(state.B.name)}</b>. Records are matched on uid; the global filters apply to file A.`);
+  const js = P.map(p => p.j);
+  h += `<div class="kpis">${kpi("Matched records", fmtN(P.length), `${fmtN(m.onlyA.length)} only in A · ${fmtN(m.onlyB.length)} only in B`)}${kpi("Mean term agreement", fx(mean(js)), "Jaccard (1 = identical term sets)")}${kpi("Identical term sets", pct(P.length ? P.filter(p => p.j === 1).length / P.length : NaN, 0))}${kpi("Mean terms / image", `${fx(mean(P.map(p => p.a.keys.size)), 1)} <span class="muted" style="font-size:14px">vs</span> ${fx(mean(P.map(p => p.b.keys.size)), 1)}`, "A vs B")}${kpi("Mean cost / image", `${usd(mean(P.map(p => p.a.cost)))} <span class="muted" style="font-size:14px">vs</span> ${usd(mean(P.map(p => p.b.cost)))}`)}${kpi("Median duration", `${fx(median(P.map(p => p.a.duration)), 1)} <span class="muted" style="font-size:14px">vs</span> ${fx(median(P.map(p => p.b.duration)), 1)} s`)}</div>`;
+  const tc = new Map(); P.forEach(p => { p.a.keys.forEach(k => { const e = tc.get(k) || { a: 0, b: 0, both: 0 }; e.a++; if (p.b.keys.has(k)) e.both++; tc.set(k, e); }); p.b.keys.forEach(k => { const e = tc.get(k) || { a: 0, b: 0, both: 0 }; e.b++; tc.set(k, e); }); });
+  const tl = [...tc.entries()].map(([k, e]) => ({ k, ...e, agree: e.both / (e.a + e.b - e.both) })).sort((x, y) => Math.abs(y.a - y.b) - Math.abs(x.a - x.b));
+  const jb = [0, .2, .4, .6, .8, 1.001], jl = ["0–.2", ".2–.4", ".4–.6", ".6–.8", ".8–1"];
+  h += `<div class="grid g2">`;
+  h += card("Agreement per record", "Distribution of term-set agreement (Jaccard)", colChart(jl.map((l, i) => ({ label: l, v: js.filter(v => v >= jb[i] && v < jb[i + 1]).length }))));
+  h += card("Terms that differ most between runs", "Records with the term in each run (matched records only)", legend([["File A", "var(--grpA)"], ["File B", "var(--grpB)"]]) + barList(tl.slice(0, 14).map(e => ({ label: pretty(e.k), v: e.a, vB: e.b, txt: `${e.a} · ${e.b}`, tip: `${pretty(e.k)}: A ${e.a} · B ${e.b} · both ${e.both} · agreement ${fx(e.agree)}`, act: openAct("term", e.k) })), { paired: true }),
+    { more: table([{ h: "Term" }, { h: "A", num: 1 }, { h: "B", num: 1 }, { h: "Both", num: 1 }, { h: "Agreement", num: 1 }], tl.map(e => ({ act: openAct("term", e.k), cells: [{ v: pretty(e.k) }, { v: e.a }, { v: e.b }, { v: e.both }, { v: e.agree, html: fx(e.agree) }] }))) });
+  h += `</div>`;
+  const worst = [...P].sort((x, y) => x.j - y.j).slice(0, 100);
+  h += `<div style="margin-top:14px">` + card("Records with the lowest agreement", "Click to see both runs' boxes on the image", table([{ h: "Record" }, { h: "Agreement", num: 1 }, { h: "Only in A" }, { h: "Only in B" }], worst.map(p => ({ act: A("openrun", p.a.uid), cells: [{ v: p.a.title, html: `${esc(p.a.title)}<div class="mono muted">${esc(p.a.uid)}</div>` }, { v: p.j, html: fx(p.j) }, { v: p.onlyA.join(" "), html: `<div class="tchips">${p.onlyA.map(k => `<span class="tchip" style="border-color:var(--grpA)">${esc(pretty(k))}</span>`).join("")}</div>` }, { v: p.onlyB.join(" "), html: `<div class="tchips">${p.onlyB.map(k => `<span class="tchip" style="border-color:var(--grpB)">${esc(pretty(k))}</span>`).join("")}</div>` }] })))) + `</div>`;
+  return h;
+}
+
+// ── Records ────────────────────────────────────────────────────────
+const PAGE = 48;
+function sortedRecords() {
+  const c = ctx(), L = state.local, rows = [...(c.cmp && L.recLane === "B" ? c.B : c.A)];
+  const s = L.recSort;
+  const cmpF = { year: (a, b) => (a.year || 9999) - (b.year || 9999), conf: (a, b) => (a.meanConf || 0) - (b.meanConf || 0), terms: (a, b) => b.keys.size - a.keys.size, title: (a, b) => a.title.localeCompare(b.title), cost: (a, b) => b.cost - a.cost }[s];
+  return cmpF ? rows.sort(cmpF) : rows;
+}
+function viewRecords() {
+  const L = state.local, c = ctx(), rows = sortedRecords(), shown = rows.slice(0, L.recPage * PAGE), hit = new Set(state.filters[c.cmp ? L.recLane : "A"].terms);
+  let h = head("Records", `${fmtN(rows.length)} records match${c.cmp ? ` Group ${L.recLane}` : " the current filters"}. Click a record to see the image with its boxes.`);
+  h += `<div class="rec-toolbar">${c.cmp ? seg("recLane", [["A", "Group A"], ["B", "Group B"]]) : ""}<label class="dim" style="font-size:13px">Sort <select class="fselect" id="recSort">${[["year", "Year"], ["conf", "Lowest confidence first"], ["terms", "Most terms"], ["cost", "Highest cost"], ["title", "Title"]].map(([v, l]) => `<option value="${v}" ${L.recSort === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>${seg("recView", [["grid", "Grid"], ["list", "List"]])}<span class="spacer"></span><button class="btn small" data-act="exportRows">Export CSV</button></div>`;
+  const recHtml = r => `<div class="rec" data-act="${A("open", "record", r.uid)}"><div class="thumb" data-thumb="${esc(r.uid)}">${thumbInner(r)}</div><div class="body"><div class="ttl">${esc(r.title || "(no title)")}</div><div class="meta">${r.year || "undated"} · ${esc(r.makers[0] || "unknown maker")} · ${r.keys.size} terms${flagsFor(r).length ? ` · <span style="color:var(--warn)">⚑ ${flagsFor(r).length}</span>` : ""}</div><div class="tchips">${[...r.keys].slice(0, 10).map(k => `<span class="tchip ${hit.has(k) ? "hit" : ""}">${esc(pretty(k))}</span>`).join("")}${r.keys.size > 10 ? `<span class="muted" style="font-size:11px">+${r.keys.size - 10}</span>` : ""}</div></div></div>`;
+  h += `<div class="${L.recView === "grid" ? "rec-grid" : "rec-list"}">${shown.map(recHtml).join("") || `<div class="muted">No records match.</div>`}</div>`;
+  if (rows.length > shown.length) h += `<div class="pager"><button class="btn" data-act="more">Show ${Math.min(PAGE, rows.length - shown.length)} more</button></div>`;
+  return h;
+}
+function exportRows() {
+  const rows = sortedRecords(), cols = ["uid", "identifier", "title", "year", "makers", "folder", "orientation", "validation", "mean_conf", "n_terms", "terms", "transcription", "url"];
+  const q = v => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
+  const csv = [cols.join(",")].concat(rows.map(r => [r.uid, r.identifier, r.title, r.year || "", r.makers.join("; "), r.folder.join(" » "), r.orientation, r.validationLevel, fx(r.meanConf, 3), r.keys.size, [...r.keys].join("; "), r.transcription, r.url].map(q).join(","))).join("\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "visual_elements_records.csv"; a.click();
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  Drawer (drill-down panels)
+// ════════════════════════════════════════════════════════════════════
+function pushDrawer(type, value) { state.drawer.push({ type, value }); renderDrawer(); writeHash(); }
+function closeDrawer() { state.drawer = []; renderDrawer(); writeHash(); }
+function drawerTitle(d) { return d.type === "record" ? ((state.A.rows.find(r => r.uid === d.value) || {}).title || d.value) : d.type === "subset" ? subsetLabel(JSON.parse(d.value)) : d.type === "term" ? pretty(d.value) : d.type === "decade" ? (d.value === "unknown" ? "Undated" : d.value + "s") : d.value; }
+function subsetLabel(f) { const p = []; (f.terms || []).forEach(t => p.push(pretty(t))); (f.makers || []).forEach(m => p.push(m)); (f.decades || []).forEach(d => p.push(d + "s")); (f.folders || []).forEach(x => p.push(x)); return p.join(" + "); }
+function renderDrawer() {
+  let root = $("drawerRoot"); if (!root) { root = document.createElement("div"); root.id = "drawerRoot"; document.body.appendChild(root); }
+  if (!state.drawer.length) { root.innerHTML = ""; return; }
+  const d = state.drawer[state.drawer.length - 1];
+  const kindL = { term: "Term", maker: "Maker", decade: "Decade", folder: "Folder", record: "Record", subset: "Selection", run: "Record · run comparison" }[d.type];
+  const field = { term: "terms", maker: "makers", decade: "decades", folder: "folders" }[d.type];
+  let acts = "";
+  if (field) acts = `<button class="btn small primary" data-act="${A("dfilter", field, d.value)}" data-tip="Add to the ${state.mode === "compare" ? "active group's " : ""}filters">Filter to this</button>`;
+  if (d.type === "subset") acts = `<button class="btn small primary" data-act="${A("dsubset", d.value)}">Apply as filter</button>`;
+  const crumbs = state.drawer.length > 1 ? `<div class="drawer-crumbs">${state.drawer.map((x, i) => i < state.drawer.length - 1 ? `<a data-act="${A("crumb", i)}">${esc(drawerTitle(x).slice(0, 30))}</a> ›` : `<span>${esc(drawerTitle(x).slice(0, 30))}</span>`).join(" ")}</div>` : "";
+  let body = "";
+  try { body = d.type === "term" ? drawerTerm(d.value) : d.type === "record" || d.type === "run" ? drawerRecord(d.value, d.type === "run") : d.type === "subset" ? drawerSubset(JSON.parse(d.value)) : drawerGroup(d.type, d.value); }
+  catch (e) { console.error(e); body = `<div class="notice">Could not render this panel: ${esc(e.message)}</div>`; }
+  root.innerHTML = `<div class="drawer-back" data-act="dclose"></div><aside class="drawer" role="dialog" aria-label="${esc(kindL)}"><div class="drawer-head">${state.drawer.length > 1 ? `<button class="btn small ghost" data-act="dback" title="Back">←</button>` : ""}<div><div class="kind">${kindL}</div><h2>${esc(drawerTitle(d))}</h2></div><div class="acts">${acts}<button class="btn small ghost" data-act="dclose" title="Close (Esc)">✕</button></div></div>${crumbs}<div class="drawer-body">${body}</div></aside>`;
+  root.querySelectorAll("canvas[data-dheat]").forEach(cv => drawHeat(cv, drawerHeat[cv.dataset.dheat] || [], cv.dataset.dheat.endsWith("occ") ? "occ" : "cen"));
+}
+let drawerHeat = {};
+function contextNote(f) { return fEmpty(f) ? "Across all records." : `Within current filters: ${esc(subsetLabel(f) || "other filters")}${f.text ? ` · text “${esc(f.text)}”` : ""}${f.orient ? " · " + f.orient : ""}${f.valid ? " · " + f.valid : ""}.`; }
+function drawerTerm(k) {
+  const minN = state.settings.minN, fBase = withoutF(state.filters.A, "terms", k), base = filterRows(state.A.rows, fBase);
+  const isTag = r => r.keys.has(k) || r.tags.has(k);
+  const rows = base.filter(isTag), rest = base.filter(r => !isTag(r));
+  const dets = rows.flatMap(r => r.all.filter(d => d.term === k || d.expr === k));
+  const confs = dets.map(d => d.conf).filter(Number.isFinite);
+  const bareTerm = k.includes(" (") ? k.split(" (")[0] : k;
+  let h = `<p class="muted" style="margin:0 0 10px;font-size:12.5px">${contextNote(fBase)}</p>`;
+  h += `<div class="kpis">${kpi("Records", fmtN(rows.length), `${pct(base.length ? rows.length / base.length : NaN)} of ${fmtN(base.length)}`, A("drecords", "terms", k))}${kpi("Detections", fmtN(dets.length), `${fx(rows.length ? dets.length / rows.length : NaN, 1)} per record`)}${kpi("Mean confidence", fx(mean(confs)), confs.length ? `min ${fx(Math.min(...confs))}` : "")}${kpi("Vocabulary", esc(taxonomyRole(bareTerm)), dets.some(d => d.kind === "other") ? `${pct(dets.filter(d => d.kind === "other").length / dets.length, 0)} as free text` : "controlled")}</div>`;
+  const anc = ancestors(bareTerm), kids = CHILDREN[bareTerm] || [];
+  if (anc.length || kids.length || k !== bareTerm) h += `<div class="tchips" style="margin-bottom:6px">${anc.reverse().map(t => `<span class="tchip" data-act="${openAct("term", t)}">↑ ${esc(pretty(t))}</span>`).join("")}${k !== bareTerm ? `<span class="tchip" data-act="${openAct("term", bareTerm)}">↑ ${esc(pretty(bareTerm))}</span>` : ""}${kids.map(t => `<span class="tchip" data-act="${openAct("term", t)}">↓ ${esc(pretty(t))}</span>`).join("")}</div>`;
+  if (!rows.length) return h + `<div class="muted">No records with this term in the current selection.</div>`;
+  // details
+  const dmap = new Map(); dets.filter(d => d.detail && d.term === k).forEach(d => dmap.set(d.expr, (dmap.get(d.expr) || 0) + 1));
+  if (dmap.size) h += `<h3>Details recorded</h3>` + barList([...dmap.entries()].sort((x, y) => y[1] - x[1]).slice(0, 10).map(([e, n]) => ({ label: e.slice(k.length + 2, -1), v: n, act: openAct("term", e) })));
+  // time
+  const decs = state.idx.decades.filter(d => d !== "unknown"), bd = groupCount(base, r => r.decade);
+  const vals = decs.map(d => { const rs = bd.get(d) || []; return rs.length ? rs.filter(isTag).length / rs.length : null; });
+  if (decs.length > 1) h += `<h3>Share of records over time</h3>` + lineChart([{ name: pretty(k), color: "var(--grpA)", values: vals, faint: decs.map(d => (bd.get(d) || []).length < minN), notes: decs.map(d => `(n=${(bd.get(d) || []).length})`) }], decs.map(d => d + "s"), { h: 160, actX: x => A("open", "subset", JSON.stringify({ terms: [k], decades: [x.slice(0, 4)] })) });
+  // makers
+  const mk = groupCount(rows, r => r.makers), mkAll = groupCount(base, r => r.makers);
+  const mItems = [...mk.entries()].sort((x, y) => y[1].length - x[1].length).slice(0, 8).map(([m, rs]) => { const tot = (mkAll.get(m) || []).length; return { label: m, v: rs.length, txt: `${rs.length} <span class="muted">· ${pct(rs.length / tot, 0)} of maker</span>`, small: tot < minN, act: A("open", "subset", JSON.stringify({ terms: [k], makers: [m] })) }; });
+  h += `<h3>Makers</h3>` + (mItems.length ? barList(mItems) : `<div class="muted">No maker information.</div>`);
+  // co-occurring
+  const co = distinctive(rows, rest, 10).filter(x => x.key !== k);
+  h += `<h3>Tends to appear with</h3>` + (co.length ? barList(co.map(x => ({ label: pretty(x.key), v: x.p1, txt: `${pct(x.p1, 0)} <span class="muted">vs ${pct(x.p2, 0)}</span>`, small: x.small, tip: `${pretty(x.key)} is in ${pct(x.p1)} of records with ${pretty(k)} vs ${pct(x.p2)} of others (p=${x.p < .001 ? "<0.001" : fx(x.p, 3)})`, act: A("open", "subset", JSON.stringify({ terms: [k, x.key] })) })), { max: 1 }) : `<div class="muted">Not enough records.</div>`);
+  // spatial
+  const vg = dets.filter(d => d.geom.valid); drawerHeat = { occ: vg, cen: vg };
+  h += `<h3>Where it sits in the frame</h3><div class="heat-wrap"><div class="heat"><canvas data-dheat="occ" width="200" height="200" style="width:170px;height:170px"></canvas><div class="cap">box coverage</div></div><div class="heat"><canvas data-dheat="cen" width="200" height="200" style="width:170px;height:170px"></canvas><div class="cap">centres</div></div><div><dl class="kv"><dt>Median area</dt><dd>${pct(median(vg.map(d => d.geom.area)))}</dd><dt>Touching edge</dt><dd>${pct(vg.length ? vg.filter(d => d.geom.edge).length / vg.length : NaN, 0)}</dd><dt>Principal subject in</dt><dd>${rows.filter(r => r.principal && (r.principal.term === k || r.principal.expr === k)).length} records</dd></dl></div></div>`;
+  // text
+  const wt = rows.filter(r => r.transcription), mt = wt.filter(r => r.all.some(d => (d.term === k || d.expr === k) && textMatches(r.corpus, d)));
+  h += `<h3>In the transcriptions</h3><p style="margin:0;font-size:13px">Named in the text of <b>${mt.length}</b> of ${wt.length} transcribed records (${pct(wt.length ? mt.length / wt.length : NaN, 0)}).</p>`;
+  // examples
+  const byConf = [...rows].sort((x, y) => Math.max(...y.all.filter(d => d.term === k || d.expr === k).map(d => d.conf || 0)) - Math.max(...x.all.filter(d => d.term === k || d.expr === k).map(d => d.conf || 0)));
+  h += `<h3>Most confident examples</h3>` + thumbStrip(byConf, 12);
+  if (byConf.length > 12) h += `<h3>Least confident examples</h3>` + thumbStrip([...byConf].reverse(), 6);
+  h += `<div style="margin-top:14px"><button class="btn" data-act="${A("drecords", "terms", k)}">View all ${fmtN(rows.length)} records →</button></div>`;
+  return h;
+}
+function drawerGroup(type, v) {
+  const field = { maker: "makers", decade: "decades", folder: "folders" }[type];
+  const fBase = withoutF(state.filters.A, field, v), base = filterRows(state.A.rows, fBase);
+  const test = { maker: r => r.makerSet.has(v), decade: r => r.decade === v, folder: r => r.folderSet.has(v) }[type];
+  const rows = base.filter(test), rest = base.filter(r => !test(r)), minN = state.settings.minN;
+  const ys = rows.map(r => r.year).filter(Boolean);
+  let h = `<p class="muted" style="margin:0 0 10px;font-size:12.5px">${contextNote(fBase)}</p>`;
+  h += `<div class="kpis">${kpi("Records", fmtN(rows.length) + smallTag(rows.length), `${pct(base.length ? rows.length / base.length : NaN)} of selection`, A("drecords", field, v))}${type !== "decade" ? kpi("Years", ys.length ? `${Math.min(...ys)}–${Math.max(...ys)}` : "–", ys.length ? `median ${median(ys)}` : "") : ""}${kpi("Terms / image", fx(median(rows.map(r => r.keys.size)), 0), `vs ${fx(median(rest.map(r => r.keys.size)), 0)} elsewhere`)}${kpi("Mean confidence", fx(mean(rows.map(r => r.meanConf).filter(Number.isFinite))))}</div>`;
+  if (type === "maker") { const g = [...state.idx.makerGroups.values()].find(g => g.canonical === v); if (g && g.variants.size > 1) h += `<p class="muted" style="font-size:12.5px;margin:0 0 6px">Merged spellings: ${[...g.variants.keys()].map(esc).join(" · ")}</p>`; }
+  const dist = distinctive(rows, rest, 12);
+  h += `<h3>Distinctive terms</h3><p class="muted" style="margin:0 0 6px;font-size:12px">Over-represented compared with the rest of the selection. Bars show share here; grey figure is share elsewhere.</p>` + (dist.length ? barList(dist.map(x => ({ label: pretty(x.key), v: x.p1, txt: `${pct(x.p1, 0)} <span class="muted">vs ${pct(x.p2, 0)}</span>`, small: x.small || x.p > .05, tip: `${pretty(x.key)}: ${x.c1} records here (${pct(x.p1)}) vs ${pct(x.p2)} elsewhere · lift ${Number.isFinite(x.lift) ? fx(x.lift, 1) : "∞"} · p=${x.p < .001 ? "<0.001" : fx(x.p, 3)}`, act: A("open", "subset", JSON.stringify({ [field]: [v], terms: [x.key] })) })), { max: 1 }) + `<p class="muted" style="font-size:11.5px">Faded rows: p &gt; 0.05 or fewer than ${minN} records.</p>` : `<div class="muted">Not enough records.</div>`);
+  h += `<h3>Most frequent terms</h3>` + barList(topKeys(rows, 10).map(e => ({ label: pretty(e.key), v: e.n / rows.length, txt: pct(e.n / rows.length, 0), act: A("open", "subset", JSON.stringify({ [field]: [v], terms: [e.key] })) })), { max: 1 });
+  if (type !== "decade") { const bd = groupCount(rows, r => r.decade), decs = state.idx.decades; h += `<h3>Over time</h3>` + colChart(decs.map(d => ({ label: d === "unknown" ? "?" : d.slice(2) + "s", v: (bd.get(d) || []).length, tip: `${d}: ${(bd.get(d) || []).length}`, act: A("open", "subset", JSON.stringify({ [field]: [v], decades: [d] })) })), { h: 100 }); }
+  if (type !== "maker") { const mk = groupCount(rows, r => r.makers); h += `<h3>Makers</h3>` + barList([...mk.entries()].sort((x, y) => y[1].length - x[1].length).slice(0, 8).map(([m, rs]) => ({ label: m, v: rs.length, act: openAct("maker", m) }))); }
+  if (type === "folder") { const sub = new Map(); rows.forEach(r => r.folderPaths.forEach(p => { if (p.startsWith(v + " » ") && p.split(" » ").length === v.split(" » ").length + 1) sub.set(p, (sub.get(p) || 0) + 1); })); if (sub.size) h += `<h3>Sub-folders</h3>` + barList([...sub.entries()].sort((x, y) => y[1] - x[1]).slice(0, 12).map(([p, n]) => ({ label: p.slice(v.length + 3), v: n, act: openAct("folder", p) }))); }
+  if (type !== "folder") { const fc = groupCount(rows, r => r.folderTop); h += `<h3>Folders</h3>` + barList([...fc.entries()].sort((x, y) => y[1].length - x[1].length).slice(0, 8).map(([f, rs]) => ({ label: f, v: rs.length, act: openAct("folder", f) }))); }
+  h += `<h3>Examples</h3>` + thumbStrip(rows, 12);
+  h += `<div style="margin-top:14px"><button class="btn" data-act="${A("drecords", field, v)}">View all ${fmtN(rows.length)} records →</button></div>`;
+  return h;
+}
+function drawerSubset(f) {
+  const merged = mergeF(state.filters.A, f), rows = filterRows(state.A.rows, merged);
+  let h = `<p class="muted" style="margin:0 0 10px;font-size:12.5px">${contextNote(state.filters.A)}</p>`;
+  h += `<div class="kpis">${kpi("Records", fmtN(rows.length), "", A("dsubsetrec", JSON.stringify(f)))}${kpi("Terms / image", fx(median(rows.map(r => r.keys.size)), 0))}${kpi("Years", (() => { const ys = rows.map(r => r.year).filter(Boolean); return ys.length ? `${Math.min(...ys)}–${Math.max(...ys)}` : "–"; })())}</div>`;
+  const parts = [...(f.terms || []).map(t => ["term", t]), ...(f.makers || []).map(m => ["maker", m]), ...(f.decades || []).map(d => ["decade", d]), ...(f.folders || []).map(x => ["folder", x])];
+  h += `<div class="tchips" style="margin-bottom:8px">${parts.map(([t, v]) => `<span class="tchip" data-act="${openAct(t, v)}">${esc(t === "term" ? pretty(v) : t === "decade" ? v + "s" : v)} ›</span>`).join("")}</div>`;
+  h += `<h3>Other frequent terms</h3>` + barList(topKeys(rows, 12).filter(e => !(f.terms || []).includes(e.key)).slice(0, 10).map(e => ({ label: pretty(e.key), v: e.n / (rows.length || 1), txt: pct(e.n / (rows.length || 1), 0), act: openAct("term", e.key) })), { max: 1 });
+  h += `<h3>Records</h3>` + thumbStrip(rows, 24, r => `${r.year || ""} ${r.makers[0] || ""}`);
+  h += `<div style="margin-top:14px"><button class="btn" data-act="${A("dsubsetrec", JSON.stringify(f))}">View all ${fmtN(rows.length)} records →</button></div>`;
+  return h;
+}
+function drawerRecord(uid, runMode) {
+  const r = state.A.rows.find(x => x.uid === uid) || (state.B && state.B.rows.find(x => x.uid === uid)); if (!r) return `<div class="muted">Record not found.</div>`;
+  const rb = state.B ? state.B.rows.find(x => x.uid === uid) : null;
+  const L = state.local, showB = rb && L.recDrawerRun === "B", cur = showB ? rb : r;
+  const hit = new Set(state.filters.A.terms);
+  const dets = cur.all.map((d, i) => ({ ...d, i }));
+  let h = "";
+  if (rb) h += `<div class="frow" style="margin-bottom:8px">${seg("recDrawerRun", [["A", "Run A · " + esc(state.A.name)], ["B", "Run B · " + esc(state.B.name)]])}</div>`;
+  const boxes = dets.filter(d => d.geom.valid).map(d => { const [y1, x1, y2, x2] = d.geom.box; const col = d.kind === "ctrl" ? "var(--grpA)" : "var(--grpB)"; return `<div class="bx" data-bx="${d.i}" style="position:absolute;left:${x1 / 10}%;top:${y1 / 10}%;width:${(x2 - x1) / 10}%;height:${(y2 - y1) / 10}%;border:2px ${d.kind === "ctrl" ? "solid" : "dashed"} ${col};border-radius:2px;box-shadow:0 0 0 1px rgba(255,255,255,.6)"><span style="position:absolute;left:-2px;top:-17px;background:${col};color:#fff;font-size:10.5px;line-height:15px;padding:0 4px;border-radius:3px;white-space:nowrap;display:var(--lbl,inline)">${esc(pretty(d.expr))}</span></div>`; }).join("");
+  h += `<div class="imgbox" id="imgbox">${r.imageUrl ? `<img src="${esc(r.imageUrl)}" alt="${esc(r.title)}" onerror="this.parentNode.innerHTML='<div class=noimg>Image could not be loaded.</div>'">${boxes}` : `<div class="noimg">No image link</div>`}</div>`;
+  h += `<div class="frow" style="margin:6px 0 0;font-size:12px"><label><input type="checkbox" id="lblToggle" checked> Show labels</label><span class="muted">Solid = controlled · dashed = free text · hover a term to highlight its box</span>${r.url ? `<span class="spacer"></span><a href="${esc(r.url)}" target="_blank" rel="noopener">Collection page ↗</a>` : ""}</div>`;
+  if (rb) { const oa = [...r.keys].filter(k => !rb.keys.has(k)), ob = [...rb.keys].filter(k => !r.keys.has(k)); h += `<h3>Run agreement</h3><div class="tchips">${[...r.keys].filter(k => rb.keys.has(k)).map(k => `<span class="tchip">${esc(pretty(k))}</span>`).join("")}${oa.map(k => `<span class="tchip" style="border-color:var(--grpA);color:var(--grpA)">A only · ${esc(pretty(k))}</span>`).join("")}${ob.map(k => `<span class="tchip" style="border-color:var(--grpB);color:var(--grpB)">B only · ${esc(pretty(k))}</span>`).join("")}</div>`; }
+  h += `<h3>Detections (${dets.length})</h3><div class="det-list">${dets.sort((x, y) => (y.conf || 0) - (x.conf || 0)).map(d => `<div class="d" data-det="${d.i}"><span class="tchip ${d.kind === "other" ? "other" : ""} ${hit.has(d.term) || hit.has(d.expr) ? "hit" : ""}" data-act="${openAct("term", state.settings.termKey === "expr" ? d.expr : d.term)}">${esc(pretty(d.expr))}</span><span></span><span class="mono ${d.conf < .5 ? "" : "muted"}" style="${d.conf < .5 ? "color:var(--bad)" : ""}">${fx(d.conf)}</span>${d.rationale ? `<span class="r">${esc(d.rationale)}</span>` : ""}</div>`).join("")}</div>`;
+  const fl = flagsFor(cur); if (fl.length || cur.notes.length) h += `<h3>Flags & validation notes</h3>${fl.map(([t, c]) => `<span class="badge ${c}">${esc(t)}</span>`).join(" ")}${cur.notes.length ? `<ul style="margin:6px 0;padding-left:18px;font-size:12.5px">${cur.notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}`;
+  if (cur.transcription) { let t = esc(cur.transcription); const words = new Set(cur.all.filter(d => textMatches(cur.corpus, d)).flatMap(d => wordTokens(d.detail).concat(wordTokens(d.term)).filter(w => w.length > 2 && !["and", "the"].includes(w)))); if (words.size) t = t.replace(new RegExp(`\\b(${[...words].map(w => w.replace(/[^a-z0-9]/g, "")).join("|")})s?\\b`, "gi"), "<mark>$&</mark>"); h += `<h3>Transcription (back of print)</h3><pre class="trans">${t}</pre>`; }
+  h += `<h3>Metadata</h3><dl class="kv"><dt>uid</dt><dd class="mono">${esc(r.uid)}</dd><dt>Identifier</dt><dd class="mono">${esc(r.identifier)}</dd><dt>Date</dt><dd>${esc(r.gemDate || "–")} <span class="muted">transcribed</span> · ${esc(r.catDate ? String(r.catDate).slice(0, 10) : "–")} <span class="muted">catalogue</span></dd><dt>Maker</dt><dd>${r.makers.map(m => `<a data-act="${openAct("maker", m)}" style="cursor:pointer">${esc(m)}</a>`).join("; ") || "–"}<div class="muted" style="font-size:12px">transcribed: ${esc(r.gemMakers.join("; ") || "–")} · catalogue: ${esc(r.catMakers.join("; ") || "–")}</div></dd><dt>Folder</dt><dd>${r.folderPaths.map((p, i) => `<a data-act="${openAct("folder", p)}" style="cursor:pointer">${esc(r.folder[i])}</a>`).join(" » ") || "–"}</dd><dt>Orientation</dt><dd>${r.orientation} (${r.width}×${r.height})</dd></dl>`;
+  h += `<details class="more"><summary>Pipeline details</summary><dl class="kv" style="margin-top:6px"><dt>Status</dt><dd>${esc(cur.status)} · ${esc(cur.validationLevel)}</dd><dt>Model</dt><dd>${esc(cur.model)} · thinking ${esc(cur.thinking || "–")}</dd><dt>Tokens</dt><dd>${fmtN(cur.inTokens)} in · ${fmtN(cur.outTokens)} out · ${fmtN(cur.thoughts)} thinking</dd><dt>Cost</dt><dd>${usd(cur.cost)}</dd><dt>Duration</dt><dd>${fx(cur.duration, 2)} s · ${cur.attempts || 1} attempt(s)</dd><dt>Finish</dt><dd>${esc(cur.finish)}</dd><dt>Versions</dt><dd>pipeline ${esc(cur.versions.pipeline)} · prompt ${esc(cur.versions.prompt)} · schema ${esc(cur.versions.schema)} · vocab ${esc(cur.versions.vocabulary)}</dd><dt>Processed</dt><dd>${esc(cur.processedAt)}</dd>${cur.error ? `<dt>Error</dt><dd>${esc(cur.error)}</dd>` : ""}${cur.dropped.length ? `<dt>Dropped objects</dt><dd>${cur.dropped.map(o => esc((o && (o.term || "")) + " – " + (o && o.reason || ""))).join("<br>")}</dd>` : ""}</dl></details>`;
+  return h;
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  Prepare / settings modal
+// ════════════════════════════════════════════════════════════════════
+let prepQuery = "";
+function openPrepare() {
+  let root = $("modalRoot"); if (!root) { root = document.createElement("div"); root.id = "modalRoot"; document.body.appendChild(root); }
+  const s = state.settings;
+  root.innerHTML = `<div class="modal-back" data-act="mclose-bg"><div class="modal" role="dialog" aria-label="Prepare data"><div class="modal-head"><h2>Prepare data</h2><span class="spacer"></span><button class="btn small ghost" data-act="mclose">✕</button></div><div class="modal-body">
+    <h3 style="font-size:14px;margin:0 0 4px">Analysis settings</h3>
+    <div class="form-row"><label>Minimum records per group</label><input type="number" id="sMinN" min="1" value="${s.minN}"><span class="muted" style="font-size:12px">Groups smaller than this are faded or excluded from comparisons.</span></div>
+    <div class="form-row"><label>Treat terms as</label><select id="sTermKey"><option value="term" ${s.termKey === "term" ? "selected" : ""}>Base term (clothing)</option><option value="expr" ${s.termKey === "expr" ? "selected" : ""}>Term + detail (clothing (coat))</option></select></div>
+    <div class="form-row"><label>Include terms</label><select id="sInclude"><option value="all" ${s.include === "all" ? "selected" : ""}>Controlled + free text</option><option value="ctrl" ${s.include === "ctrl" ? "selected" : ""}>Controlled vocabulary only</option></select></div>
+    <div class="form-row"><label>Year from</label><select id="sYear"><option value="gem_fallback" ${s.yearSource === "gem_fallback" ? "selected" : ""}>Transcribed date, else catalogue</option><option value="gem" ${s.yearSource === "gem" ? "selected" : ""}>Transcribed date only</option><option value="catalogue" ${s.yearSource === "catalogue" ? "selected" : ""}>Catalogue date only</option></select></div>
+    <div class="form-row"><label>Maker from</label><select id="sMaker"><option value="gem_fallback" ${s.makerSource === "gem_fallback" ? "selected" : ""}>Transcribed maker, else catalogue</option><option value="gem" ${s.makerSource === "gem" ? "selected" : ""}>Transcribed maker only</option><option value="catalogue" ${s.makerSource === "catalogue" ? "selected" : ""}>Catalogue maker only</option></select></div>
+    <h3 style="font-size:14px;margin:18px 0 4px">Maker-name standardisation</h3>
+    <p class="muted" style="font-size:12.5px;margin:0 0 8px">Spellings are grouped automatically (case, punctuation, “Ltd”, “Surname, First”). Edit the standard name to rename a group, or give two groups the same name to merge them. Changes are remembered in this browser.</p>
+    <div class="frow" style="margin-bottom:6px"><input class="inline-input" id="prepQ" placeholder="Filter makers…" value="${esc(prepQuery)}" style="flex:1"><button class="btn small" data-act="mexport">Export mapping</button><button class="btn small" data-act="mimport">Import mapping</button><button class="btn small" data-act="mreset">Reset to suggestions</button></div>
+    <div id="prepList" style="max-height:360px;overflow:auto">${prepList()}</div>
+  </div><div class="modal-foot"><button class="btn" data-act="mclose">Cancel</button><button class="btn primary" data-act="mapply">Apply</button></div></div></div>`;
+  $("prepQ").addEventListener("input", e => { prepQuery = e.target.value; $("prepList").innerHTML = prepList(); });
+}
+function prepList() {
+  const q = prepQuery.toLowerCase();
+  const gs = [...state.idx.makerGroups.values()].filter(g => !q || g.canonical.toLowerCase().includes(q) || [...g.variants.keys()].some(v => v.toLowerCase().includes(q))).sort((a, b) => (b.variants.size > 1) - (a.variants.size > 1) || b.n - a.n).slice(0, 250);
+  return `<div class="mgroup" style="font-size:12px;color:var(--text-3);font-weight:600"><span>Spellings found (records)</span><span>Standard name</span></div>` + gs.map(g => `<div class="mgroup"><div class="vars">${[...g.variants.entries()].map(([v, n]) => `${esc(v)} <b>(${n})</b>`).join("<br>")}</div><input data-mkey="${esc(g.key)}" value="${esc(g.canonical)}"></div>`).join("");
+}
+function applyPrepare() {
+  const s = state.settings;
+  s.minN = Math.max(1, parseInt($("sMinN").value) || 5); s.termKey = $("sTermKey").value; s.include = $("sInclude").value; s.yearSource = $("sYear").value; s.makerSource = $("sMaker").value;
+  document.querySelectorAll("#prepList input[data-mkey]").forEach(i => { const g = state.idx.makerGroups.get(i.dataset.mkey); const v = i.value.trim(); if (!g || !v) return; if (v !== g.suggested) state.makerOverrides[g.key] = v; else delete state.makerOverrides[g.key]; });
+  lsSet("vew13.settings", s); lsSet("vew13.makers", state.makerOverrides);
+  $("modalRoot").innerHTML = ""; rebuild(); invalidate(); state.local.trendTerms = []; state.local.trendInit = false; state.local.compTerm = ""; renderAll(); toast("Settings applied");
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  Rendering & events
+// ════════════════════════════════════════════════════════════════════
+function renderAll() { if (!state.A) return renderLoad(); renderLanes(); renderTabs(); renderMain(); renderDrawer(); writeHash(); }
+function renderMain() {
+  const views = { overview: viewOverview, vocab: viewVocab, people: viewPeople, composition: viewComposition, text: viewText, qa: viewQA, runs: viewRuns, records: viewRecords };
+  let h;
+  try { h = (views[state.tab] || viewOverview)(); } catch (e) { console.error(e); h = `<div class="notice">Something went wrong rendering this view: ${esc(e.message)}</div>`; }
+  if (!ctx().A.length && state.tab !== "runs") h = `<div class="notice">No records match the current filters. <a href="#" data-act="clearAll">Clear filters</a></div>` + (state.tab === "records" ? "" : "");
+  const dl = `<datalist id="termList">${[...state.idx.keyCounts.entries()].sort((a, b) => b[1].n - a[1].n).map(([k]) => `<option value="${esc(k)}">`).join("")}</datalist>`;
+  $("main").innerHTML = h + dl;
+  if (state.tab === "composition" && pendingHeat) document.querySelectorAll("canvas[data-heat]").forEach(cv => { const t = cv.dataset.heat; drawHeat(cv, pendingHeat[t[0]] || [], t.slice(1)); });
+  bindViewInputs();
+}
+function bindViewInputs() {
+  const on = (id, ev, fn) => { const e = $(id); if (e) e.addEventListener(ev, fn); };
+  on("recSort", "change", e => { state.local.recSort = e.target.value; state.local.recPage = 1; renderMain(); });
+  on("projN", "change", e => { state.local.projN = Math.max(1, parseInt(e.target.value) || 1); renderMain(); });
+  on("trendAdd", "change", e => { const v = e.target.value.trim(); if (v && state.idx.keyCounts.has(v)) { const L = state.local; if (state.mode === "compare") L.trendTerms = [v]; else if (!L.trendTerms.includes(v)) L.trendTerms = L.trendTerms.concat(v).slice(-4); renderMain(); } });
+  on("compPick", "change", e => { const v = e.target.value.trim(); if (state.idx.keyCounts.has(v)) { state.local.compTerm = v; renderMain(); } });
+  on("pairA", "change", e => { state.local.pairA = e.target.value.trim(); renderMain(); });
+  on("pairB", "change", e => { state.local.pairB = e.target.value.trim(); renderMain(); });
+}
+function handleAct(parts, ev) {
+  const [cmd, ...rest] = parts.map(dec);
+  const L = state.local;
+  switch (cmd) {
+    case "open": if (ev && (ev.altKey || ev.shiftKey) && ["term", "maker", "decade", "folder"].includes(rest[0])) return addFilter({ term: "terms", maker: "makers", decade: "decades", folder: "folders" }[rest[0]], rest[1]); return pushDrawer(rest[0], rest[1]);
+    case "thumb": return loadThumb(rest[0]);
+    case "openrun": L.recDrawerRun = "A"; return pushDrawer("run", rest[0]);
+    case "tab": state.tab = rest[0]; closeDrawerSilently(); window.scrollTo(0, 0); return renderAll();
+    case "local": L[rest[0]] = rest[1]; if (rest[0] === "recLane" || rest[0] === "recView") L.recPage = 1; if (rest[0] === "recDrawerRun") return renderDrawer(); return renderMain();
+    case "filter": return addFilter(rest[0], rest[1]);
+    case "rmf": return removeFilter(rest[0], rest[1], rest[2]);
+    case "lane": state.lane = rest[0]; return renderLanes();
+    case "dclose": return closeDrawer();
+    case "dback": state.drawer.pop(); renderDrawer(); return writeHash();
+    case "crumb": state.drawer = state.drawer.slice(0, +rest[0] + 1); renderDrawer(); return writeHash();
+    case "dfilter": state.drawer = []; return addFilter(rest[0], rest[1]);
+    case "drecords": state.drawer = []; state.tab = "records"; return addFilter(rest[0], rest[1]);
+    case "dsubset": case "dsubsetrec": { const f = JSON.parse(rest[0]); state.filters[state.lane] = mergeF(state.filters[state.lane], f); state.drawer = []; if (cmd === "dsubsetrec") state.tab = "records"; L.recPage = 1; invalidate(); return renderAll(); }
+    case "trendrm": L.trendTerms = L.trendTerms.filter(k => k !== rest[0]); return renderMain();
+    case "trendset": if (state.mode === "compare") L.trendTerms = [rest[0]]; else if (!L.trendTerms.includes(rest[0])) L.trendTerms = L.trendTerms.concat(rest[0]).slice(-4); return renderMain();
+    case "compset": L.compTerm = rest[0]; renderMain(); return window.scrollTo({ top: 0, behavior: "smooth" });
+    case "more": L.recPage++; return renderMain();
+    case "exportRows": return exportRows();
+    case "prepare": return openPrepare();
+    case "mclose": $("modalRoot").innerHTML = ""; return;
+    case "mclose-bg": if (ev && ev.target.classList.contains("modal-back")) $("modalRoot").innerHTML = ""; return;
+    case "mapply": return applyPrepare();
+    case "mreset": state.makerOverrides = {}; state.idx.makerGroups.forEach(g => g.canonical = g.suggested); $("prepList").innerHTML = prepList(); return;
+    case "mexport": { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(state.makerOverrides, null, 2)], { type: "application/json" })); a.download = "maker_mapping.json"; a.click(); return; }
+    case "mimport": { const i = document.createElement("input"); i.type = "file"; i.accept = ".json"; i.onchange = () => { const fr = new FileReader(); fr.onload = () => { try { Object.assign(state.makerOverrides, JSON.parse(fr.result)); state.idx.makerGroups.forEach(g => g.canonical = state.makerOverrides[g.key] || g.suggested); $("prepList").innerHTML = prepList(); toast("Mapping imported – click Apply"); } catch (e) { toast("Could not read that file"); } }; fr.readAsText(i.files[0]); }; i.click(); return; }
+    case "clearAll": state.filters = { A: emptyF(), B: emptyF() }; invalidate(); return renderAll();
+  }
+}
+function closeDrawerSilently() { state.drawer = []; }
+document.addEventListener("click", ev => {
+  const sg = ev.target.closest("[data-sg]"); if (sg) return pickSuggest(+sg.dataset.sg);
+  if (!ev.target.closest(".search-wrap")) $("suggest").classList.add("hidden");
+  const th = ev.target.closest("table.sortable th"); if (th) return sortTable(th);
+  const el = ev.target.closest("[data-act]"); if (!el || !el.dataset.act) return;
+  if (el.tagName === "A") ev.preventDefault();
+  if (el.dataset.act === "prepare" || el.dataset.act === "exportRows" || el.dataset.act === "more" || el.dataset.act === "dclose" || el.dataset.act === "dback" || el.dataset.act === "mclose" || el.dataset.act === "mclose-bg" || el.dataset.act === "mapply" || el.dataset.act === "mreset" || el.dataset.act === "mexport" || el.dataset.act === "mimport" || el.dataset.act === "clearAll") return handleAct([el.dataset.act], ev);
+  handleAct(el.dataset.act.split("|"), ev);
+});
+function sortTable(th) {
+  const table = th.closest("table"), i = +th.dataset.col, tb = table.tBodies[0], dir = th.dataset.dir === "desc" ? "asc" : "desc";
+  table.querySelectorAll("th").forEach(x => { delete x.dataset.dir; x.textContent = x.textContent.replace(/ [▲▼]$/, ""); });
+  th.dataset.dir = dir; th.textContent += dir === "desc" ? " ▼" : " ▲";
+  const rows = [...tb.rows], num = rows.every(r => r.cells[i].dataset.v === "" || !isNaN(parseFloat(r.cells[i].dataset.v)));
+  rows.sort((a, b) => { const x = a.cells[i].dataset.v, y = b.cells[i].dataset.v; const c = num ? (parseFloat(x) || 0) - (parseFloat(y) || 0) : x.localeCompare(y); return dir === "desc" ? -c : c; });
+  rows.forEach(r => tb.appendChild(r));
+}
+// tooltips
+const tip = $("tip");
+document.addEventListener("mouseover", ev => {
+  const el = ev.target.closest("[data-tip],[data-tiphtml]");
+  if (!el || (!el.dataset.tip && !el.dataset.tiphtml)) { tip.style.display = "none"; }
+  else { if (el.dataset.tiphtml) tip.innerHTML = el.dataset.tiphtml; else tip.textContent = el.dataset.tip; tip.style.display = "block"; }
+  const det = ev.target.closest("[data-det]"); document.querySelectorAll(".bx.hl").forEach(b => { b.classList.remove("hl"); b.style.zIndex = ""; b.style.outline = ""; });
+  if (det) { const b = document.querySelector(`.bx[data-bx="${det.dataset.det}"]`); if (b) { b.classList.add("hl"); b.style.zIndex = 5; b.style.outline = "3px solid #fab219"; } }
+});
+document.addEventListener("mousemove", ev => { if (tip.style.display === "block") { const x = Math.min(ev.clientX + 14, innerWidth - tip.offsetWidth - 8), y = ev.clientY + 16 + tip.offsetHeight > innerHeight ? ev.clientY - tip.offsetHeight - 10 : ev.clientY + 16; tip.style.left = x + "px"; tip.style.top = y + "px"; } });
+document.addEventListener("change", ev => { if (ev.target.id === "lblToggle") $("imgbox").style.setProperty("--lbl", ev.target.checked ? "inline" : "none"); });
+document.addEventListener("keydown", ev => { if (ev.key === "Escape") { if ($("modalRoot") && $("modalRoot").innerHTML) $("modalRoot").innerHTML = ""; else if (state.drawer.length) closeDrawer(); } });
+
+// top-bar & filter-bar wiring
+$("themeBtn").addEventListener("click", () => { const next = isDark() ? "light" : "dark"; document.documentElement.dataset.theme = next; lsSet("vew13.theme", next); if (state.A) { renderMain(); renderDrawer(); } });
+(() => { const t = lsGet("vew13.theme", null); if (t) document.documentElement.dataset.theme = t; })();
+document.querySelectorAll("#modeSeg button").forEach(b => b.addEventListener("click", () => { state.mode = b.dataset.mode; state.lane = state.mode === "compare" ? "B" : "A"; document.querySelectorAll("#modeSeg button").forEach(x => x.classList.toggle("on", x === b)); if (state.mode === "compare") state.local.trendTerms = state.local.trendTerms.slice(0, 1); invalidate(); renderAll(); }));
+$("prepareBtn").addEventListener("click", openPrepare);
+$("loadBtn").addEventListener("click", () => { state.A = null; state.B = null; state.drawer = []; renderLoad(); });
+$("clearFilters").addEventListener("click", () => { state.filters = { A: emptyF(), B: emptyF() }; invalidate(); renderAll(); });
+[["fDecade", "decades"], ["fFolder", "folders"], ["fOrient", "orient"], ["fValid", "valid"]].forEach(([id, field]) => $(id).addEventListener("change", e => { const v = e.target.value; e.target.value = ""; if (v) addFilter(field, v); }));
+$("searchInput").addEventListener("input", renderSuggest);
+$("searchInput").addEventListener("focus", renderSuggest);
+$("searchInput").addEventListener("keydown", e => {
+  if (e.key === "ArrowDown") { sgAct = Math.min(sgItems.length - 1, sgAct + 1); hlSuggest(); e.preventDefault(); }
+  else if (e.key === "ArrowUp") { sgAct = Math.max(0, sgAct - 1); hlSuggest(); e.preventDefault(); }
+  else if (e.key === "Enter") { pickSuggest(sgAct); e.preventDefault(); }
+  else if (e.key === "Escape") $("suggest").classList.add("hidden");
+});
+
+// ── URL hash (bookmarkable views) ─────────────────────────────────
+function writeHash() {
+  if (!state.A) return;
+  const s = { t: state.tab, m: state.mode, f: state.filters, d: state.drawer.slice(-1)[0] || null };
+  try { history.replaceState(null, "", "#" + enc(JSON.stringify(s))); } catch (e) {}
+}
+function readHash() {
+  try { const s = JSON.parse(dec(location.hash.slice(1))); if (!s) return; state.tab = s.t || "overview"; state.mode = s.m || "single"; if (s.f) state.filters = { A: Object.assign(emptyF(), s.f.A), B: Object.assign(emptyF(), s.f.B) }; state.drawer = s.d ? [s.d] : []; document.querySelectorAll("#modeSeg button").forEach(x => x.classList.toggle("on", x.dataset.mode === state.mode)); state.lane = state.mode === "compare" ? "B" : "A"; } catch (e) {}
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  Loading
+// ════════════════════════════════════════════════════════════════════
+const pending = { A: null, B: null };
+function renderLoad() {
+  ["filterbar", "tabs", "modeSeg", "prepareBtn", "loadBtn", "datasetPill"].forEach(id => $(id).classList.add("hidden"));
+  $("main").innerHTML = `<div class="load"><h1>Load your extraction output</h1><p class="lead">Drop the spreadsheet exported by the visual-elements pipeline. Everything is processed locally in your browser – nothing is uploaded.</p>
+  <div class="drops">
+    <div class="drop ${pending.A ? "ok" : ""}" id="dropA"><div class="t">${pending.A ? "✓ " + esc(pending.A.name) : "File A · main dataset"}</div><div class="d">${pending.A ? fmtN(pending.A.rows.length) + " processed records" : "Required · .xlsx or .csv · click or drop"}</div></div>
+    <div class="drop ${pending.B ? "ok" : ""}" id="dropB"><div class="t">${pending.B ? "✓ " + esc(pending.B.name) : "File B · second run (optional)"}</div><div class="d">${pending.B ? fmtN(pending.B.rows.length) + " processed records" : "Another model / prompt run of the same images, to compare runs"}</div></div>
+  </div>
+  <div style="margin-top:16px;display:flex;gap:10px"><button class="btn primary" id="startBtn" ${pending.A ? "" : "disabled"}>Open workbench</button>${pending.A || pending.B ? `<button class="btn" id="clearLoad">Clear</button>` : ""}</div>
+  <ol class="load-steps"><li><b>Overview</b> gives headline figures and surfaced patterns.</li><li>Use the <b>search / filter bar</b> to narrow down to terms, makers, decades or folders – filters apply to every tab.</li><li><b>Click anything</b> (a bar, a cell, a term) to open a side panel with its details; keep clicking to drill down to individual photographs.</li><li>Switch to <b>Compare groups</b> to set up two subgroups and see them side by side.</li></ol></div>`;
+  ["A", "B"].forEach(k => {
+    const d = $("drop" + k), inp = $("file" + k);
+    d.onclick = () => inp.click();
+    d.ondragover = e => { e.preventDefault(); d.classList.add("over"); }; d.ondragleave = () => d.classList.remove("over");
+    d.ondrop = e => { e.preventDefault(); d.classList.remove("over"); if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0], k); };
+    inp.onchange = () => { if (inp.files[0]) readFile(inp.files[0], k); inp.value = ""; };
+  });
+  $("startBtn").onclick = start;
+  if ($("clearLoad")) $("clearLoad").onclick = () => { pending.A = pending.B = null; renderLoad(); };
+}
+function rowsToDataset(raw, name) {
+  const seen = new Set(), rows = [], all = [];
+  raw.forEach(x => { const r = normalizeRow(x); if (!r.uid) return; all.push(r); if (!r.processed || seen.has(r.uid)) return; seen.add(r.uid); rows.push(r); });
+  if (!all.length) throw new Error("No rows with a uid column were found.");
+  return { name, rows, all };
+}
+function readFile(file, k) {
+  const fr = new FileReader();
+  fr.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: "array", cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]]; const raw = XLSX.utils.sheet_to_json(ws, { defval: null, raw: true });
+      pending[k] = rowsToDataset(raw, file.name); renderLoad();
+    } catch (err) { console.error(err); toast("Could not read " + file.name + ": " + err.message); }
+  };
+  fr.readAsArrayBuffer(file);
+}
+function start() {
+  state.A = pending.A; state.B = pending.B;
+  rebuild(); invalidate();
+  ["filterbar", "tabs", "modeSeg", "prepareBtn", "loadBtn", "datasetPill"].forEach(id => $(id).classList.remove("hidden"));
+  $("datasetPill").textContent = `${state.A.name} · ${fmtN(state.A.rows.length)} records${state.B ? ` · vs ${state.B.name}` : ""}`;
+  readHash(); if (state.tab === "runs" && !state.B) state.tab = "overview";
+  renderAll();
+}
+window.__vew = { state, handleAct, renderAll, pending, start, normalizeRow };  // for debugging in the console
+renderLoad();
+// Data Hub: load the published visual-elements data as File A and open the
+// workbench straight away. "Load files" still lets you add your own A/B files.
+HubData.autoload("visual_table", raw => {
+  if (state.A) return;                       // someone already loaded a file manually
+  pending.A = rowsToDataset(raw, "Data Hub · visual elements");
+  start();
+}, { label: "visual-element data" });
+})();
+</script>
+</body>
+</html>

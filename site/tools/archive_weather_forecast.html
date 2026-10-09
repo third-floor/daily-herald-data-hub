@@ -1,0 +1,2170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Archive Weather Forecast</title>
+
+  <!--
+    INTERNET-DEPENDENT LIBRARIES
+    To run fully offline, download these files into the same folder and replace
+    the CDN URLs with local paths:
+      xlsx.full.min.js
+      leaflet.css
+      leaflet.js
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!--
+    Do not add an integrity attribute here unless it has been checked against
+    the exact CDN response. An invalid CSS integrity hash causes Leaflet's tile
+    positioning rules to be blocked, producing disconnected map tiles.
+  -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
+    referrerpolicy="no-referrer"
+    onerror="this.onerror=null;this.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';"
+  />
+  <script
+    src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
+    referrerpolicy="no-referrer"
+    onerror="this.onerror=null;this.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';"
+  ></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"
+    referrerpolicy="no-referrer"
+    onerror="this.onerror=null;this.src='https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js';"
+  ></script>
+
+  <style>
+    :root {
+      --navy: #003b5c;
+      --navy-dark: #00283f;
+      --blue: #0067a5;
+      --cyan: #00a6b2;
+      --turquoise: #00b9c7;
+      --yellow: #ffd500;
+      --orange: #f28c28;
+      --red: #d63a3a;
+      --green: #4f8a2f;
+      --purple: #6a43a6;
+      --light-blue: #eaf6f8;
+      --pale-blue: #f2f8fa;
+      --grey-050: #f7f8f9;
+      --grey-100: #edf0f2;
+      --grey-300: #cbd2d7;
+      --grey-600: #59636b;
+      --ink: #111820;
+      --white: #fff;
+      --shadow: 0 8px 30px rgba(0, 40, 63, 0.13);
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 80% -10%, rgba(0,185,199,.18), transparent 35%),
+        linear-gradient(180deg, var(--navy-dark) 0 295px, var(--grey-050) 295px);
+      color: var(--ink);
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    a { color: var(--blue); }
+    button, select, input { font: inherit; }
+
+    .shell {
+      width: min(1440px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 18px 0 44px;
+    }
+
+    .masthead {
+      color: var(--white);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 24px;
+      align-items: end;
+      min-height: 160px;
+      padding: 16px 8px 22px;
+    }
+    .eyebrow {
+      color: var(--turquoise);
+      font-weight: 850;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      font-size: .82rem;
+    }
+    .masthead h1 {
+      margin: 7px 0 7px;
+      font-size: clamp(2.2rem, 5vw, 4.6rem);
+      line-height: .98;
+      letter-spacing: -.045em;
+    }
+    .masthead p {
+      margin: 0;
+      max-width: 850px;
+      color: #d9eef4;
+      line-height: 1.55;
+    }
+    .brand {
+      border-left: 1px solid rgba(255,255,255,.35);
+      padding-left: 24px;
+      font-weight: 850;
+      line-height: .95;
+      text-transform: uppercase;
+      letter-spacing: .02em;
+      font-size: 1.15rem;
+    }
+
+    .notice {
+      background: #fff8d6;
+      border-left: 6px solid var(--yellow);
+      padding: 13px 16px;
+      border-radius: 8px;
+      margin: 0 0 15px;
+      line-height: 1.45;
+    }
+
+    .toolbar {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: end;
+      margin-bottom: 16px;
+    }
+    .control {
+      display: grid;
+      gap: 5px;
+    }
+    .control label {
+      color: var(--grey-600);
+      font-size: .75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+    }
+    .control select,
+    .control input[type="date"],
+    .control input[type="file"] {
+      min-height: 42px;
+      border: 1px solid var(--grey-300);
+      border-radius: 7px;
+      padding: 8px 10px;
+      background: var(--white);
+    }
+    .grow { flex: 1 1 300px; }
+
+    .button {
+      appearance: none;
+      border: 0;
+      border-radius: 7px;
+      min-height: 42px;
+      padding: 10px 15px;
+      font-weight: 800;
+      cursor: pointer;
+      background: var(--navy);
+      color: var(--white);
+    }
+    .button:hover { background: var(--blue); }
+    .button.secondary {
+      background: var(--light-blue);
+      color: var(--navy);
+      border: 1px solid #b7dbe0;
+    }
+
+    .status {
+      min-height: 24px;
+      margin: 0 4px 12px;
+      color: #d9eef4;
+      font-size: .92rem;
+    }
+    .status.error { color: #ffd3cf; }
+    .status.warning {
+      color: #5b4300;
+      background: #fff3cd;
+      border-left: 5px solid var(--yellow);
+      padding: 9px 12px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+
+    .broadcast-grid {
+      display: grid;
+      grid-template-columns: minmax(300px, .78fr) minmax(500px, 1.6fr);
+      gap: 16px;
+      align-items: stretch;
+    }
+    .panel {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .panel-header {
+      color: var(--white);
+      background: var(--navy);
+      padding: 12px 16px;
+      font-size: .85rem;
+      text-transform: uppercase;
+      letter-spacing: .075em;
+      font-weight: 850;
+    }
+    .map-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .map-mode-toggle {
+      display: inline-flex;
+      gap: 4px;
+      padding: 3px;
+      border-radius: 7px;
+      background: rgba(255,255,255,.12);
+      text-transform: none;
+      letter-spacing: normal;
+    }
+    .map-mode-button {
+      appearance: none;
+      border: 0;
+      border-radius: 5px;
+      padding: 6px 10px;
+      cursor: pointer;
+      background: transparent;
+      color: #d9eef4;
+      font-size: .77rem;
+      font-weight: 800;
+    }
+    .map-mode-button:hover {
+      background: rgba(255,255,255,.12);
+      color: var(--white);
+    }
+    .map-mode-button.active {
+      background: var(--white);
+      color: var(--navy);
+    }
+    .heat-legend-bar {
+      width: 150px;
+      height: 10px;
+      border-radius: 99px;
+      background: linear-gradient(90deg, #2c7bb6, #00a6ca, #00ccbc, #90eb9d, #ffff8c, #f9d057, #f29e2e, #e76818, #d7191c);
+      border: 1px solid rgba(0,0,0,.15);
+    }
+    .panel-body { padding: 17px; }
+
+    .headline-card {
+      background:
+        linear-gradient(150deg, rgba(0,185,199,.18), transparent 48%),
+        linear-gradient(160deg, var(--navy-dark), var(--navy));
+      color: var(--white);
+      min-height: 100%;
+    }
+    .headline-card .panel-header {
+      background: rgba(255,255,255,.07);
+      border-bottom: 1px solid rgba(255,255,255,.16);
+    }
+    .date-line {
+      color: var(--turquoise);
+      font-weight: 850;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+    .headline {
+      margin: 11px 0 8px;
+      font-size: clamp(2rem, 4vw, 3.65rem);
+      line-height: .98;
+      letter-spacing: -.035em;
+      text-transform: uppercase;
+    }
+    .broadcast-copy {
+      font-size: 1.12rem;
+      line-height: 1.5;
+      color: #e4f2f6;
+    }
+    .headline-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 18px;
+    }
+    .headline-metric {
+      background: rgba(255,255,255,.09);
+      border: 1px solid rgba(255,255,255,.13);
+      border-radius: 8px;
+      padding: 11px;
+    }
+    .headline-metric strong {
+      display: block;
+      font-size: 1.35rem;
+      color: var(--white);
+    }
+    .headline-metric span {
+      color: #cce5eb;
+      font-size: .78rem;
+    }
+
+    #mapContainer {
+      position: relative;
+      width: 100%;
+      min-width: 0;
+      overflow: hidden;
+      background: #dbe7eb;
+    }
+    #map {
+      width: 100%;
+      height: 500px;
+      min-height: 500px;
+      background: #dbe7eb;
+    }
+    .map-empty {
+      height: 500px;
+      display: grid;
+      place-items: center;
+      padding: 30px;
+      text-align: center;
+      background:
+        linear-gradient(140deg, var(--pale-blue), var(--light-blue));
+      color: var(--navy);
+    }
+    .map-empty code {
+      display: inline-block;
+      background: var(--white);
+      padding: 3px 7px;
+      border-radius: 5px;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      padding: 11px 14px;
+      border-top: 1px solid var(--grey-100);
+      font-size: .82rem;
+    }
+    .legend-item {
+      display: inline-flex;
+      gap: 7px;
+      align-items: center;
+    }
+    .swatch {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,0,0,.14);
+    }
+
+    .activity-strip {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(130px, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .activity-card {
+      background: var(--white);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      padding: 13px;
+      border-top: 5px solid var(--cyan);
+    }
+    .activity-icon {
+      font-size: 1.7rem;
+      line-height: 1;
+    }
+    .activity-name {
+      margin-top: 8px;
+      color: var(--navy);
+      font-weight: 850;
+    }
+    .activity-count {
+      color: var(--grey-600);
+      font-size: .83rem;
+      margin-top: 4px;
+    }
+    .meter {
+      height: 8px;
+      background: var(--grey-100);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-top: 9px;
+    }
+    .meter > i {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+    }
+
+    .outlook {
+      margin-top: 16px;
+    }
+    .outlook-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(125px, 1fr));
+      gap: 9px;
+      padding: 14px;
+    }
+    .day-card {
+      appearance: none;
+      text-align: left;
+      background: var(--white);
+      border: 1px solid var(--grey-300);
+      border-radius: 9px;
+      padding: 12px;
+      cursor: pointer;
+      min-height: 165px;
+    }
+    .day-card:hover,
+    .day-card.active {
+      border-color: var(--cyan);
+      box-shadow: inset 0 0 0 2px var(--cyan);
+    }
+    .day-card .dow {
+      color: var(--grey-600);
+      font-size: .75rem;
+      font-weight: 850;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+    }
+    .day-card .md {
+      color: var(--navy);
+      font-size: 1.15rem;
+      font-weight: 900;
+      margin-top: 2px;
+    }
+    .day-icon { font-size: 2rem; margin: 12px 0 6px; }
+    .day-theme { font-weight: 850; color: var(--navy); }
+    .day-count { font-size: .82rem; color: var(--grey-600); margin-top: 5px; }
+
+    .lower-grid {
+      display: grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .rank-list {
+      display: grid;
+      gap: 8px;
+    }
+    .rank-row {
+      display: grid;
+      grid-template-columns: minmax(110px, 1fr) 2fr auto;
+      gap: 10px;
+      align-items: center;
+      font-size: .9rem;
+    }
+    .rank-bar {
+      height: 10px;
+      border-radius: 99px;
+      background: var(--grey-100);
+      overflow: hidden;
+    }
+    .rank-bar i { display:block; height:100%; background:var(--cyan); }
+    .evidence {
+      display: grid;
+      gap: 10px;
+    }
+    .evidence-item {
+      border-left: 4px solid var(--cyan);
+      background: var(--pale-blue);
+      padding: 10px 12px;
+      border-radius: 4px;
+    }
+    .evidence-item strong { color: var(--navy); }
+    .muted { color: var(--grey-600); }
+
+    .records {
+      margin-top: 16px;
+    }
+    .records-list {
+      display: grid;
+      gap: 9px;
+    }
+    .record {
+      border: 1px solid var(--grey-300);
+      border-left: 5px solid var(--blue);
+      border-radius: 7px;
+      padding: 12px;
+    }
+    .record-title { color: var(--navy); font-weight: 850; }
+    .record-meta { color: var(--grey-600); font-size: .82rem; margin-top: 4px; }
+    .record-links { margin-top: 8px; font-size: .86rem; }
+    .record-links a { font-weight: 750; margin-right: 12px; }
+
+    .technical {
+      margin-top: 16px;
+    }
+    details summary {
+      cursor: pointer;
+      font-weight: 850;
+      color: var(--navy);
+    }
+    .schema-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: .86rem;
+    }
+    .schema-table th,
+    .schema-table td {
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid var(--grey-300);
+      vertical-align: top;
+    }
+    .schema-table th { background: var(--pale-blue); color: var(--navy); }
+
+    .leaflet-popup-content-wrapper { border-radius: 7px; }
+    .marker-label {
+      background: var(--white);
+      color: var(--navy);
+      border: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,.18);
+      font-weight: 800;
+      padding: 4px 6px;
+    }
+    .marker-label:before { display:none; }
+
+    @media (max-width: 980px) {
+      .broadcast-grid, .lower-grid { grid-template-columns: 1fr; }
+      .activity-strip { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
+      .outlook-grid { grid-template-columns: repeat(4, minmax(125px, 1fr)); }
+      .brand { display:none; }
+    }
+    @media (max-width: 640px) {
+      .shell { width: min(100% - 16px, 1440px); }
+      .activity-strip { grid-template-columns: 1fr 1fr; }
+      .outlook-grid { grid-template-columns: 1fr 1fr; }
+      .headline-metrics { grid-template-columns: 1fr; }
+      #map, .map-empty { height: 420px; }
+    }
+  </style>
+<script src="../assets/hub-data.js"></script>
+</head>
+
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <div>
+        <div class="eyebrow">Collection forecast</div>
+        <h1>Archive Weather</h1>
+        <p>
+          A playful television-style outlook showing which themes and places are
+          most active across the archive for a chosen date and the seven days ahead.
+        </p>
+      </div>
+      <div class="brand">Science<br />Museum<br />Group</div>
+    </header>
+
+    <div class="notice">
+      <strong>Interpretive feature:</strong> this is not meteorological data.
+      “Tomorrow” and the “week ahead” group historic records by calendar month and day,
+      disregarding their year.
+    </div>
+
+    <section class="toolbar" aria-label="Forecast controls">
+      <div class="control">
+        <label for="startDate">Forecast start</label>
+        <input id="startDate" type="date" value="2026-08-03" />
+      </div>
+
+      <div class="control">
+        <label for="dataFile">Your own Excel file (optional)</label>
+        <input id="dataFile" type="file" accept=".xlsx,.xls" />
+      </div>
+
+      <div class="control grow">
+        <label>Data Hub</label>
+        <button class="button secondary" id="reloadButton" type="button">
+          Reload Data Hub data
+        </button>
+      </div>
+
+      <button class="button" id="todayButton" type="button">Start from today</button>
+    </section>
+
+    <div id="status" class="status" role="status" aria-live="polite">
+      Waiting to load data…
+    </div>
+
+    <section class="broadcast-grid">
+      <article class="panel headline-card">
+        <div class="panel-header">Tomorrow’s headline</div>
+        <div class="panel-body">
+          <div id="headlineDate" class="date-line">—</div>
+          <h2 id="headline" class="headline">Loading forecast</h2>
+          <p id="broadcastCopy" class="broadcast-copy">
+            Reading the archive and calculating activity…
+          </p>
+
+          <div class="headline-metrics">
+            <div class="headline-metric">
+              <strong id="metricImages">0</strong>
+              <span>images</span>
+            </div>
+            <div class="headline-metric">
+              <strong id="metricPlaces">0</strong>
+              <span>mapped places</span>
+            </div>
+            <div class="headline-metric">
+              <strong id="metricYears">0</strong>
+              <span>years represented</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-header map-panel-header">
+          <span>Location forecast map</span>
+          <span class="map-mode-toggle" role="group" aria-label="Map display mode">
+            <button id="dotsModeButton" class="map-mode-button active" type="button" aria-pressed="true">● Dots</button>
+            <button id="heatModeButton" class="map-mode-button" type="button" aria-pressed="false">☁ Activity clouds</button>
+          </span>
+        </div>
+        <div id="mapContainer">
+          <div class="map-empty">
+            <div>
+              <h3>Location data is being checked</h3>
+              <p>
+                A map appears when the workbook contains latitude and longitude,
+                either on the record sheet or through a <code>place_gazetteer</code> sheet.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div id="legend" class="legend"></div>
+      </article>
+    </section>
+
+    <section id="activityStrip" class="activity-strip" aria-label="Activity forecast"></section>
+
+    <section class="panel outlook">
+      <div class="panel-header">Seven-day archive outlook</div>
+      <div id="outlookGrid" class="outlook-grid"></div>
+    </section>
+
+    <section class="lower-grid">
+      <article class="panel">
+        <div class="panel-header">Top forecast locations</div>
+        <div class="panel-body">
+          <div id="locationRanking" class="rank-list"></div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-header">Why this forecast?</div>
+        <div class="panel-body">
+          <div id="evidence" class="evidence"></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel records">
+      <div class="panel-header">Example records for the selected day</div>
+      <div class="panel-body">
+        <div id="recordsList" class="records-list"></div>
+      </div>
+    </section>
+
+    <section class="panel technical">
+      <div class="panel-body">
+        <details>
+          <summary>Workbook formats understood by this HTML</summary>
+          <p class="muted">
+            The page derives dates, title hierarchy, provisional categories,
+            activity descriptions, basic place names, daily totals, intensity labels,
+            broadcast text and seven-day summaries in the browser. It also recognises
+            the enrichment outputs listed below when you add them later.
+          </p>
+
+          <table class="schema-table">
+            <thead>
+              <tr>
+                <th>Sheet / columns</th>
+                <th>Purpose</th>
+                <th>Required?</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>records</code> or first worksheet</td>
+                <td>Raw archive records. Existing fields such as title, date, gem_date_flat, gem_depicted_activity, gem_places_depicted, gem_places_flat, url and image_links are recognised.</td>
+                <td>Yes</td>
+              </tr>
+              <tr>
+                <td><code>place_gazetteer</code></td>
+                <td>Reusable mapping table: raw_place, normalized_place, display_place, region, country, latitude, longitude, place_type, confidence.</td>
+                <td>Needed for a reliable map</td>
+              </tr>
+              <tr>
+                <td><code>category_map</code></td>
+                <td>Curated classification rules: match_type, match_value, primary_category, secondary_category, icon_key, colour.</td>
+                <td>Recommended</td>
+              </tr>
+              <tr>
+                <td>Optional enriched record columns</td>
+                <td>resolved_date, date_confidence, date_ambiguous, forecast_category_primary, forecast_category_secondary, activity_description, primary_place, normalized_place, region, latitude, longitude, place_confidence, forecast_eligible.</td>
+                <td>Recommended for production</td>
+              </tr>
+            </tbody>
+          </table>
+        </details>
+      </div>
+    </section>
+  </main>
+
+<script>
+"use strict";
+
+/* ============================================================
+   CONFIGURATION
+   ============================================================ */
+
+const CONFIG = {
+  // Put this HTML and the workbook in the same folder.
+  defaultWorkbook: "./archive_weather_data.xlsx",
+
+  // Sheet names the page will look for. If "records" does not exist,
+  // it uses the first sheet.
+  recordsSheet: "records",
+  gazetteerSheet: "place_gazetteer",
+  categoryMapSheet: "category_map",
+
+  maxExampleRecords: 12,
+  mapDefaultCentre: [54.5, -3.1],
+  mapDefaultZoom: 5,
+
+  // Raw columns recognised without preprocessing.
+  columns: {
+    id: ["uid", "identifier"],
+    identifier: ["identifier", "uid"],
+    title: ["title"],
+    description: ["description"],
+    rawDate: ["gem_date_flat", "gem_date_primary", "date"],
+    activity: ["activity_description", "gem_depicted_activity"],
+    placesDepicted: ["primary_place", "gem_places_depicted", "gem_places_flat"],
+    placesMentioned: ["gem_places_mentioned"],
+    recordUrl: ["url"],
+    imageUrl: ["image_links", "image_links.1"],
+    category: ["forecast_category_primary"],
+    secondaryCategory: ["forecast_category_secondary"],
+    latitude: ["latitude", "lat"],
+    longitude: ["longitude", "lon", "lng"],
+    region: ["region"],
+    normalizedPlace: ["normalized_place", "display_place"],
+    forecastEligible: ["forecast_eligible"],
+    mapEligible: ["map_forecast_eligible", "map_eligible"]
+  }
+};
+
+const CATEGORY_DEFINITIONS = {
+  "Agriculture and rural life": {
+    icon: "🚜", colour: "#4f8a2f",
+    keywords: ["agriculture","agricultural","farm","farmer","farming","harvest","harvesting","reaping","crop","crops","tractor","threshing","livestock","pig","cattle","sheep","rural","thatched","thatching"]
+  },
+  "Industry and work": {
+    icon: "🏭", colour: "#0067a5",
+    keywords: ["industry","industries","industrial","factory","factories","worker","workers","workshop","manufacturing","manufacture","machinery","mine","mining","clay","pottery","depot"]
+  },
+  "Politics and public life": {
+    icon: "🏛️", colour: "#6a43a6",
+    keywords: ["politics","political","election","elections","labour","conservative","campaign","meeting","rally","minister","parliament","council","union","demonstration","protest"]
+  },
+  "Sport": {
+    icon: "⚽", colour: "#f28c28",
+    keywords: ["sport","sports","football","cricket","tennis","boxing","race","racing","yachting","fishing competition","match","team","teams","athletics"]
+  },
+  "Transport and infrastructure": {
+    icon: "🚆", colour: "#d39b00",
+    keywords: ["transport","train","railway","railways","station","road","roads","car","cars","lorry","bus","ship","boat","boats","aviation","aircraft"]
+  },
+  "Emergency and public safety": {
+    icon: "🚨", colour: "#d63a3a",
+    keywords: ["fire","fires","firefighter","firemen","police","rescue","accident","murder","crime","emergency","ambulance","disaster"]
+  },
+  "Children and family": {
+    icon: "🧒", colour: "#00a6b2",
+    keywords: ["child","children","boy","boys","girl","girls","family","families","school","paddling","camp"]
+  },
+  "Leisure and entertainment": {
+    icon: "🎭", colour: "#e7569a",
+    keywords: ["leisure","entertainment","dancing","dance","music","orchestra","holiday","holidays","fashion","fashions","theatre","cinema","seaside"]
+  },
+  "Animals and nature": {
+    icon: "🐾", colour: "#71943f",
+    keywords: ["animal","animals","zoo","wolf","wolves","fish","bird","birds","nature","wildlife","horse","horses"]
+  },
+  "Royalty and ceremony": {
+    icon: "👑", colour: "#7a5a00",
+    keywords: ["royal","royalty","queen","king","prince","princess","ceremony","ceremonial","visit"]
+  },
+  "Housing and community": {
+    icon: "🏠", colour: "#168b8f",
+    keywords: ["housing","house","houses","home","community","park","parks","street","streets","village","town"]
+  },
+  "Military and wartime": {
+    icon: "🎖️", colour: "#59636b",
+    keywords: ["military","army","navy","raf","war","wartime","soldier","soldiers","air force","troops"]
+  },
+  "Other or mixed": {
+    icon: "◌", colour: "#7c858c",
+    keywords: []
+  }
+};
+
+const state = {
+  workbook: null,
+  rawRows: [],
+  rows: [],
+  gazetteer: new Map(),
+  categoryRules: [],
+  selectedDate: new Date("2026-08-03T12:00:00"),
+  selectedMonthDay: "08-03",
+  map: null,
+  mapLayer: null,
+  heatLayer: null,
+  baseLayer: null,
+  fallbackBaseLayer: null,
+  mapResizeObserver: null,
+  tileErrorCount: 0,
+  mapMode: "dots",
+  currentForecast: null
+};
+
+/* ============================================================
+   GENERAL HELPERS
+   ============================================================ */
+
+function clean(value) {
+  if (value === null || value === undefined) return "";
+  return String(value)
+    .replace(/\u00a0/g, " ")
+    .replace(/Â»/g, "»")
+    .replace(/Â«/g, "«")
+    .replace(/Â/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isPlaceholderValue(value) {
+  if (value === null || value === undefined) return true;
+  const text = String(value).trim();
+  return text === "" || text === "45";
+}
+
+function escapeHtml(value) {
+  return clean(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function firstValue(row, candidates) {
+  for (const name of candidates) {
+    if (Object.prototype.hasOwnProperty.call(row, name)) {
+      const rawValue = row[name];
+      if (isPlaceholderValue(rawValue)) continue;
+      const value = clean(rawValue);
+      if (value !== "") return value;
+    }
+  }
+  return "";
+}
+
+function booleanValue(value, fallback = true) {
+  const text = clean(value).toLowerCase();
+  if (!text) return fallback;
+  return !["false", "0", "no", "n"].includes(text);
+}
+
+function numberValue(value) {
+  if (isPlaceholderValue(value)) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeKey(value) {
+  return clean(value)
+    .toLowerCase()
+    .replace(/[’']/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function unique(values) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function plural(count, singular, pluralForm = `${singular}s`) {
+  return count === 1 ? singular : pluralForm;
+}
+
+function parsePossibleJson(value) {
+  if (value && typeof value === "object") return value;
+  const text = clean(value);
+  if (!text || !["{", "["].includes(text[0])) return null;
+  try { return JSON.parse(text); } catch (_) { return null; }
+}
+
+function formatMonthDay(month, day) {
+  const reference = new Date(2000, month - 1, day);
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric", month: "long"
+  }).format(reference);
+}
+
+function formatFullDate(date) {
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "long", day: "numeric", month: "long"
+  }).format(date);
+}
+
+function monthDayKey(date) {
+  return `${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function setStatus(message, type = "normal") {
+  const element = document.getElementById("status");
+  element.textContent = message;
+  element.classList.toggle("error", type === "error" || type === true);
+  element.classList.toggle("warning", type === "warning");
+}
+
+/* ============================================================
+   DATE DERIVATION IN THE BROWSER
+   ============================================================ */
+
+function validDate(year, month, day) {
+  const y = Number(year), m = Number(month), d = Number(day);
+  const date = new Date(y, m - 1, d, 12, 0, 0);
+  if (
+    date.getFullYear() === y &&
+    date.getMonth() === m - 1 &&
+    date.getDate() === d
+  ) return date;
+  return null;
+}
+
+function parseCompleteDate(value) {
+  const direct = value instanceof Date ? value : null;
+  if (direct && !Number.isNaN(direct.getTime())) return {
+    date: direct, confidence: 1, ambiguous: false, method: "Excel date"
+  };
+
+  const text = clean(value);
+  if (!text) return null;
+
+  let match;
+
+  // YYYY-MM-DD
+  match = text.match(/\b(18\d{2}|19\d{2}|20\d{2})[-/.](0?[1-9]|1[0-2])[-/.](0?[1-9]|[12]\d|3[01])\b/);
+  if (match) {
+    const date = validDate(match[1], match[2], match[3]);
+    if (date) return { date, confidence: .98, ambiguous: false, method: "ISO-like date" };
+  }
+
+  // British archive convention DD/MM/YYYY. Flag cases where DD <= 12.
+  match = text.match(/\b(0?[1-9]|[12]\d|3[01])[-/.](0?[1-9]|1[0-2])[-/.](18\d{2}|19\d{2}|20\d{2})\b/);
+  if (match) {
+    const date = validDate(match[3], match[2], match[1]);
+    if (date) {
+      const ambiguous = Number(match[1]) <= 12;
+      return {
+        date,
+        confidence: ambiguous ? .8 : .95,
+        ambiguous,
+        method: ambiguous ? "British day/month assumption" : "British numeric date"
+      };
+    }
+  }
+
+  const months = {
+    january:1, february:2, march:3, april:4, may:5, june:6,
+    july:7, august:8, september:9, october:10, november:11, december:12,
+    jan:1, feb:2, mar:3, apr:4, jun:6, jul:7, aug:8, sep:9, sept:9, oct:10, nov:11, dec:12
+  };
+  const monthNames = Object.keys(months).join("|");
+
+  // 14 July 1959
+  match = text.match(new RegExp(`\\b(0?[1-9]|[12]\\d|3[01])(?:st|nd|rd|th)?\\s+(${monthNames})\\.?,?\\s+(18\\d{2}|19\\d{2}|20\\d{2})\\b`, "i"));
+  if (match) {
+    const date = validDate(match[3], months[match[2].toLowerCase()], match[1]);
+    if (date) return { date, confidence: .97, ambiguous: false, method: "Named British date" };
+  }
+
+  // July 14, 1959
+  match = text.match(new RegExp(`\\b(${monthNames})\\.?\\s+(0?[1-9]|[12]\\d|3[01])(?:st|nd|rd|th)?,?\\s+(18\\d{2}|19\\d{2}|20\\d{2})\\b`, "i"));
+  if (match) {
+    const date = validDate(match[3], months[match[1].toLowerCase()], match[2]);
+    if (date) return { date, confidence: .95, ambiguous: false, method: "Named date" };
+  }
+
+  return null;
+}
+
+/* ============================================================
+   TITLE TAXONOMY AND ACTIVITY DERIVATION IN THE BROWSER
+   ============================================================ */
+
+function parseTitleHierarchy(title) {
+  let text = clean(title);
+  text = text.replace(/^A photographic print of\s*/i, "").trim();
+  return text.split(/\s*,\s*/).map(clean).filter(Boolean).slice(0, 6);
+}
+
+function extractActivityDescription(value) {
+  const parsed = parsePossibleJson(value);
+  if (parsed) {
+    if (typeof parsed === "string") return clean(parsed);
+    if (parsed.description) return clean(parsed.description);
+    if (parsed.activity) return clean(parsed.activity);
+    if (Array.isArray(parsed)) {
+      const descriptions = parsed
+        .map(item => item && (item.description || item.activity || item.name))
+        .map(clean)
+        .filter(Boolean);
+      if (descriptions.length) return descriptions.join("; ");
+    }
+  }
+  return clean(value);
+}
+
+/* ============================================================
+   PLACE EXTRACTION AND OPTIONAL GAZETTEER MATCHING
+   ============================================================ */
+
+function collectPlaceStrings(value) {
+  const parsed = parsePossibleJson(value);
+  const output = [];
+
+  function visit(item) {
+    if (!item) return;
+    if (typeof item === "string") {
+      output.push(...item.split(/\s*;\s*/).map(clean).filter(Boolean));
+      return;
+    }
+    if (Array.isArray(item)) {
+      item.forEach(visit);
+      return;
+    }
+    if (typeof item === "object") {
+      const preferred = item.name_standardised || item.display_name || item.name || item.place;
+      if (preferred) output.push(clean(preferred));
+      if (item.places) visit(item.places);
+    }
+  }
+
+  visit(parsed || value);
+  return unique(output);
+}
+
+function normalizePlaceName(rawPlace) {
+  const text = clean(rawPlace)
+    .replace(/\s*;\s*$/g, "")
+    .replace(/\s+/g, " ");
+  return text;
+}
+
+function gazetteerCandidates(place) {
+  const full = normalizeKey(place);
+  const firstComponent = normalizeKey(clean(place).split(",")[0]);
+  return unique([full, firstComponent]);
+}
+
+function matchGazetteer(place) {
+  for (const key of gazetteerCandidates(place)) {
+    if (state.gazetteer.has(key)) return state.gazetteer.get(key);
+  }
+  return null;
+}
+
+/* ============================================================
+   CATEGORY DERIVATION
+   ============================================================ */
+
+function classifyWithCuratedRules(row, combinedText) {
+  for (const rule of state.categoryRules) {
+    const source = rule.match_type === "title_level_1"
+      ? normalizeKey(row.title_levels[0] || "")
+      : normalizeKey(combinedText);
+
+    if (!rule.match_value) continue;
+
+    let matched = false;
+    if (rule.match_type === "regex") {
+      try { matched = new RegExp(rule.match_value, "i").test(combinedText); }
+      catch (_) { matched = false; }
+    } else if (rule.match_type === "exact" || rule.match_type === "title_level_1") {
+      matched = source === normalizeKey(rule.match_value);
+    } else {
+      matched = source.includes(normalizeKey(rule.match_value));
+    }
+
+    if (matched) {
+      return {
+        primary: rule.primary_category || "Other or mixed",
+        secondary: rule.secondary_category || "",
+        source: "category_map"
+      };
+    }
+  }
+  return null;
+}
+
+function classifyRecord(row) {
+  if (row.explicit_category) {
+    return {
+      primary: row.explicit_category,
+      secondary: row.explicit_secondary_category,
+      source: "enriched record"
+    };
+  }
+
+  const combinedText = [
+    row.title_levels.join(" "),
+    row.title,
+    row.description,
+    row.activity_description
+  ].join(" ").toLowerCase();
+
+  const curated = classifyWithCuratedRules(row, combinedText);
+  if (curated) return curated;
+
+  const scores = Object.entries(CATEGORY_DEFINITIONS).map(([category, definition]) => {
+    let score = 0;
+    for (const keyword of definition.keywords) {
+      const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const matches = combinedText.match(new RegExp(`\\b${escaped}\\b`, "gi"));
+      if (matches) score += matches.length;
+    }
+
+    // The first title level is often a strong controlled-term signal.
+    const topLevel = (row.title_levels[0] || "").toLowerCase();
+    if (definition.keywords.some(keyword => topLevel.includes(keyword))) score += 4;
+
+    return { category, score };
+  }).sort((a, b) => b.score - a.score);
+
+  return {
+    primary: scores[0].score > 0 ? scores[0].category : "Other or mixed",
+    secondary: scores[1].score > 0 && scores[1].score >= scores[0].score * .55
+      ? scores[1].category
+      : "",
+    source: "browser keyword rules"
+  };
+}
+
+/* ============================================================
+   WORKBOOK READING
+   ============================================================ */
+
+function sheetRows(workbook, sheetName) {
+  if (!workbook.Sheets[sheetName]) return [];
+  return XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
+    defval: "",
+    raw: true,
+    cellDates: true
+  });
+}
+
+function findSheetName(workbook, desired) {
+  const exact = workbook.SheetNames.find(name => name.toLowerCase() === desired.toLowerCase());
+  return exact || null;
+}
+
+function loadGazetteer(workbook, rowsOverride) {
+  state.gazetteer.clear();
+  let rows = rowsOverride;
+  if (!rows) {
+    const sheetName = workbook && findSheetName(workbook, CONFIG.gazetteerSheet);
+    if (!sheetName) return;
+    rows = sheetRows(workbook, sheetName);
+  }
+
+  for (const raw of rows) {
+    const rawPlace = firstValue(raw, ["raw_place", "place", "source_place"]);
+    const normalized = firstValue(raw, ["normalized_place", "normalised_place", "display_place"]);
+    const latitude = numberValue(firstValue(raw, ["latitude", "lat"]));
+    const longitude = numberValue(firstValue(raw, ["longitude", "lon", "lng"]));
+
+    const entry = {
+      raw_place: rawPlace,
+      normalized_place: normalized || rawPlace,
+      display_place: firstValue(raw, ["display_place"]) || normalized || rawPlace,
+      region: firstValue(raw, ["region"]),
+      country: firstValue(raw, ["country"]),
+      latitude,
+      longitude,
+      place_type: firstValue(raw, ["place_type"]),
+      confidence: firstValue(raw, ["confidence", "place_confidence"])
+    };
+
+    for (const candidate of unique([
+      normalizeKey(rawPlace),
+      normalizeKey(normalized),
+      normalizeKey(entry.display_place)
+    ])) {
+      if (candidate) state.gazetteer.set(candidate, entry);
+    }
+  }
+}
+
+function loadCategoryRules(workbook, rowsOverride) {
+  state.categoryRules = [];
+  let rows = rowsOverride;
+  if (!rows) {
+    const sheetName = workbook && findSheetName(workbook, CONFIG.categoryMapSheet);
+    if (!sheetName) return;
+    rows = sheetRows(workbook, sheetName);
+  }
+
+  state.categoryRules = rows
+    .map(raw => ({
+      match_type: clean(raw.match_type || "contains").toLowerCase(),
+      match_value: clean(raw.match_value || raw.source_value || raw.pattern),
+      primary_category: clean(raw.primary_category),
+      secondary_category: clean(raw.secondary_category),
+      icon_key: clean(raw.icon_key),
+      colour: clean(raw.colour || raw.color)
+    }))
+    .filter(rule => rule.match_value && rule.primary_category);
+}
+
+function enrichRows(rawRows) {
+  return rawRows.map((raw, index) => {
+    const title = firstValue(raw, CONFIG.columns.title);
+    const description = firstValue(raw, CONFIG.columns.description);
+    const titleLevels = parseTitleHierarchy(title);
+
+    const explicitDate = firstValue(raw, ["resolved_date"]);
+    const dateSource = explicitDate || firstValue(raw, CONFIG.columns.rawDate);
+    const parsedDate = parseCompleteDate(dateSource);
+
+    const activityDescription =
+      firstValue(raw, ["activity_description"]) ||
+      extractActivityDescription(firstValue(raw, CONFIG.columns.activity));
+
+    const depictedPlaces = collectPlaceStrings(firstValue(raw, CONFIG.columns.placesDepicted));
+    const mentionedPlaces = collectPlaceStrings(firstValue(raw, CONFIG.columns.placesMentioned));
+    const primaryPlace = firstValue(raw, ["primary_place"]) || depictedPlaces[0] || "";
+
+    const recordLat = numberValue(firstValue(raw, CONFIG.columns.latitude));
+    const recordLon = numberValue(firstValue(raw, CONFIG.columns.longitude));
+    const gazetteer = primaryPlace ? matchGazetteer(primaryPlace) : null;
+
+    const row = {
+      source_index: index,
+      raw,
+      id: firstValue(raw, CONFIG.columns.id) || `row-${index + 1}`,
+      identifier: firstValue(raw, CONFIG.columns.identifier),
+      title,
+      description,
+      title_levels: titleLevels,
+      date: parsedDate ? parsedDate.date : null,
+      date_confidence:
+        numberValue(firstValue(raw, ["date_confidence"])) ??
+        (parsedDate ? parsedDate.confidence : null),
+      date_ambiguous:
+        firstValue(raw, ["date_ambiguous"]) !== ""
+          ? booleanValue(firstValue(raw, ["date_ambiguous"]), false)
+          : Boolean(parsedDate && parsedDate.ambiguous),
+      date_method:
+        firstValue(raw, ["date_resolution_method"]) ||
+        (parsedDate ? parsedDate.method : ""),
+      activity_description: activityDescription,
+      depicted_places: depictedPlaces,
+      mentioned_places: mentionedPlaces,
+      primary_place: primaryPlace,
+      normalized_place:
+        firstValue(raw, CONFIG.columns.normalizedPlace) ||
+        (gazetteer ? gazetteer.normalized_place : normalizePlaceName(primaryPlace)),
+      display_place:
+        (gazetteer && gazetteer.display_place) ||
+        firstValue(raw, ["display_place"]) ||
+        normalizePlaceName(primaryPlace),
+      region:
+        firstValue(raw, CONFIG.columns.region) ||
+        (gazetteer ? gazetteer.region : ""),
+      latitude: recordLat ?? (gazetteer ? gazetteer.latitude : null),
+      longitude: recordLon ?? (gazetteer ? gazetteer.longitude : null),
+      place_confidence:
+        firstValue(raw, ["place_confidence"]) ||
+        (gazetteer ? gazetteer.confidence : ""),
+      record_url: firstValue(raw, CONFIG.columns.recordUrl),
+      image_url: firstValue(raw, CONFIG.columns.imageUrl).split(/[;\n|]/)[0].trim(),
+      explicit_category: firstValue(raw, CONFIG.columns.category),
+      explicit_secondary_category: firstValue(raw, CONFIG.columns.secondaryCategory),
+      forecast_eligible: booleanValue(firstValue(raw, CONFIG.columns.forecastEligible), true),
+      map_eligible: firstValue(raw, CONFIG.columns.mapEligible) !== ""
+        ? booleanValue(firstValue(raw, CONFIG.columns.mapEligible), false)
+        : true
+    };
+
+    const classification = classifyRecord(row);
+    row.primary_category = classification.primary;
+    row.secondary_category = classification.secondary;
+    row.category_source = classification.source;
+
+    if (row.date) {
+      row.calendar_year = row.date.getFullYear();
+      row.calendar_month = row.date.getMonth() + 1;
+      row.calendar_day = row.date.getDate();
+      row.month_day = monthDayKey(row.date);
+    } else {
+      row.calendar_year = null;
+      row.calendar_month = null;
+      row.calendar_day = null;
+      row.month_day = "";
+    }
+
+    return row;
+  }).filter(row => row.forecast_eligible && row.date);
+}
+
+async function readWorkbookFromArrayBuffer(buffer, sourceLabel) {
+  const workbook = XLSX.read(buffer, {
+    type: "array",
+    cellDates: true
+  });
+
+  state.workbook = workbook;
+  loadGazetteer(workbook);
+  loadCategoryRules(workbook);
+
+  const recordsSheet =
+    findSheetName(workbook, CONFIG.recordsSheet) ||
+    workbook.SheetNames[0];
+
+  readRecordRows(sheetRows(workbook, recordsSheet), `“${recordsSheet}” (${sourceLabel})`);
+}
+
+// Shared by the spreadsheet loaders and the Data Hub loader.
+function readRecordRows(rawRows, sourceLabel) {
+  state.rawRows = rawRows;
+  state.rows = enrichRows(state.rawRows);
+
+  setStatus(
+    `Loaded ${state.rows.length.toLocaleString()} forecast-eligible dated records ` +
+    `from ${sourceLabel}. ` +
+    `${state.gazetteer.size.toLocaleString()} gazetteer keys and ` +
+    `${state.categoryRules.length.toLocaleString()} curated category rules found.`
+  );
+
+  renderAll();
+}
+
+// Data Hub: dated records, plus an optional place gazetteer and category map
+// (add them as "lookup" sources named place_gazetteer / category_map).
+async function loadFromHub() {
+  setStatus("Loading dated records from the Data Hub…");
+  const [rows, gazetteer, categories] = await Promise.all([
+    HubData.loadView("dates", { onProgress: p => setStatus(
+      `Loading dated records from the Data Hub… ${(p.bytes / 1e6).toFixed(1)} / ${(p.total / 1e6).toFixed(1)} MB`) }),
+    HubData.loadView("place_gazetteer", { optional: true }),
+    HubData.loadView("category_map", { optional: true })
+  ]);
+  state.workbook = null;
+  loadGazetteer(null, gazetteer);
+  loadCategoryRules(null, categories);
+  readRecordRows(rows, "the Daily Herald Data Hub");
+}
+
+async function loadDefaultWorkbook() {
+  if (window.HubData && window.location.protocol !== "file:") {
+    try {
+      await loadFromHub();
+      return;
+    } catch (error) {
+      console.warn("Data Hub load failed, falling back to the workbook:", error);
+    }
+  }
+  if (window.location.protocol === "file:") {
+    setStatus(
+      "This page is open as a local file. Browsers do not permit it to automatically read a neighbouring Excel file. Use “Choose File” above, or run this folder through a local web server for automatic loading. This browser security warning does not affect manually selected workbook coordinates.",
+      "warning"
+    );
+    return;
+  }
+
+  setStatus(`Loading ${CONFIG.defaultWorkbook}…`);
+  try {
+    const response = await fetch(CONFIG.defaultWorkbook, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const buffer = await response.arrayBuffer();
+    await readWorkbookFromArrayBuffer(buffer, CONFIG.defaultWorkbook);
+  } catch (error) {
+    setStatus(
+      `Automatic loading failed (${error.message}). Use the file chooser above or confirm that ${CONFIG.defaultWorkbook} exists beside the HTML file.`,
+      "error"
+    );
+  }
+}
+
+/* ============================================================
+   FORECAST AGGREGATION
+   ============================================================ */
+
+function rowsForMonthDay(monthDay) {
+  return state.rows.filter(row => row.month_day === monthDay);
+}
+
+function countBy(rows, keyFunction) {
+  const counts = new Map();
+  for (const row of rows) {
+    const key = keyFunction(row);
+    if (!key) continue;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([key, count]) => ({ key, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+function categoryDefinition(category) {
+  return CATEGORY_DEFINITIONS[category] || CATEGORY_DEFINITIONS["Other or mixed"];
+}
+
+function intensityLabel(count, maximum) {
+  if (!maximum || !count) return "Minimal";
+  const ratio = count / maximum;
+  if (ratio >= .82) return "Very high";
+  if (ratio >= .58) return "High";
+  if (ratio >= .34) return "Moderate";
+  if (ratio >= .16) return "Light";
+  return "Isolated";
+}
+
+function buildDayForecast(date) {
+  const key = monthDayKey(date);
+  const rows = rowsForMonthDay(key);
+  const categories = countBy(rows, row => row.primary_category);
+  const years = unique(rows.map(row => row.calendar_year));
+  const mappedRows = rows.filter(row =>
+    row.map_eligible &&
+    row.latitude !== null &&
+    row.longitude !== null &&
+    row.display_place &&
+    row.display_place !== "45" &&
+    row.latitude >= -90 && row.latitude <= 90 &&
+    row.longitude >= -180 && row.longitude <= 180
+  );
+
+  const locationsMap = new Map();
+  for (const row of mappedRows) {
+    const placeKey = normalizeKey(row.display_place || row.normalized_place || row.primary_place);
+    if (!placeKey) continue;
+
+    if (!locationsMap.has(placeKey)) {
+      locationsMap.set(placeKey, {
+        key: placeKey,
+        display_place: row.display_place || row.normalized_place || row.primary_place,
+        region: row.region,
+        latitude: row.latitude,
+        longitude: row.longitude,
+        rows: []
+      });
+    }
+    locationsMap.get(placeKey).rows.push(row);
+  }
+
+  const locations = [...locationsMap.values()].map(location => {
+    const categoryCounts = countBy(location.rows, row => row.primary_category);
+    return {
+      ...location,
+      count: location.rows.length,
+      dominant_category: categoryCounts[0]?.key || "Other or mixed",
+      secondary_category: categoryCounts[1]?.key || "",
+      category_counts: categoryCounts
+    };
+  }).sort((a, b) => b.count - a.count);
+
+  const dominant = categories[0]?.key || "Mixed archive activity";
+  const secondary = categories[1]?.key || "";
+  const topLocation = locations[0]?.display_place || "";
+
+  const maxCategoryCount = categories[0]?.count || 0;
+  const categoryForecast = categories.slice(0, 5).map(item => ({
+    ...item,
+    intensity: intensityLabel(item.count, maxCategoryCount),
+    share: rows.length ? item.count / rows.length : 0
+  }));
+
+  return {
+    date,
+    key,
+    rows,
+    categories,
+    categoryForecast,
+    years,
+    locations,
+    dominant,
+    secondary,
+    topLocation
+  };
+}
+
+function generateHeadline(forecast) {
+  if (!forecast.rows.length) {
+    return {
+      title: "Quiet archive conditions",
+      copy: "No complete dated records were found for this calendar day."
+    };
+  }
+
+  const dominantDef = categoryDefinition(forecast.dominant);
+  const secondaryText = forecast.secondary
+    ? `, with ${forecast.secondary.toLowerCase()} also developing`
+    : "";
+  const placeText = forecast.topLocation
+    ? ` A notable concentration appears around ${forecast.topLocation}.`
+    : "";
+
+  return {
+    title: `${dominantDef.icon} ${forecast.dominant}`,
+    copy:
+      `${forecast.dominant} is the leading archive condition for ${formatMonthDay(
+        forecast.date.getMonth() + 1,
+        forecast.date.getDate()
+      )}${secondaryText}.${placeText}`
+  };
+}
+
+/* ============================================================
+   MAP
+   ============================================================ */
+
+function setMapMode(mode) {
+  state.mapMode = mode === "heat" ? "heat" : "dots";
+
+  const dotsButton = document.getElementById("dotsModeButton");
+  const heatButton = document.getElementById("heatModeButton");
+  if (dotsButton) {
+    const active = state.mapMode === "dots";
+    dotsButton.classList.toggle("active", active);
+    dotsButton.setAttribute("aria-pressed", String(active));
+  }
+  if (heatButton) {
+    const active = state.mapMode === "heat";
+    heatButton.classList.toggle("active", active);
+    heatButton.setAttribute("aria-pressed", String(active));
+  }
+
+  if (state.currentForecast) {
+    renderMap(state.currentForecast);
+  }
+}
+
+function renderMapLegend(validLocations) {
+  const legend = document.getElementById("legend");
+
+  if (state.mapMode === "heat") {
+    const total = validLocations.reduce((sum, item) => sum + item.count, 0);
+    legend.innerHTML = `
+      <span class="legend-item"><strong>Activity density</strong></span>
+      <span class="legend-item">Low</span>
+      <span class="heat-legend-bar" aria-label="Low to high activity density"></span>
+      <span class="legend-item">High</span>
+      <span class="legend-item muted">${total.toLocaleString()} mapped ${plural(total, "image")}</span>`;
+    return;
+  }
+
+  const representedCategories = unique(validLocations.map(item => item.dominant_category));
+  legend.innerHTML = representedCategories.map(category => {
+    const definition = categoryDefinition(category);
+    return `
+      <span class="legend-item">
+        <span class="swatch" style="background:${definition.colour}"></span>
+        ${escapeHtml(category)}
+      </span>`;
+  }).join("");
+}
+
+function initialiseMap() {
+  const container = document.getElementById("mapContainer");
+  container.innerHTML = '<div id="map" aria-label="Map of archive activity"></div>';
+
+  if (typeof L === "undefined") {
+    container.innerHTML = `
+      <div class="map-empty">
+        <div>
+          <h3>Map library did not load</h3>
+          <p>Check the internet connection or host Leaflet locally beside this HTML file.</p>
+        </div>
+      </div>`;
+    return;
+  }
+
+  state.map = L.map("map", {
+    scrollWheelZoom: false,
+    zoomControl: true,
+    preferCanvas: true,
+    worldCopyJump: false
+  }).setView(CONFIG.mapDefaultCentre, CONFIG.mapDefaultZoom);
+
+  // CARTO is used as the primary basemap because its CDN generally behaves
+  // reliably in institutional networks. OpenStreetMap is retained as fallback.
+  const carto = L.tileLayer(
+    "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    {
+      subdomains: "abcd",
+      maxZoom: 19,
+      minZoom: 2,
+      detectRetina: true,
+      updateWhenIdle: true,
+      keepBuffer: 3,
+      crossOrigin: true,
+      attribution:
+        '&copy; OpenStreetMap contributors &copy; CARTO'
+    }
+  );
+
+  const osm = L.tileLayer(
+    "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {
+      maxZoom: 19,
+      minZoom: 2,
+      detectRetina: true,
+      updateWhenIdle: true,
+      keepBuffer: 3,
+      crossOrigin: true,
+      attribution: '&copy; OpenStreetMap contributors'
+    }
+  );
+
+  state.baseLayer = carto;
+  state.fallbackBaseLayer = osm;
+  state.tileErrorCount = 0;
+
+  carto.on("tileerror", () => {
+    state.tileErrorCount += 1;
+    // A single transient tile error is common. Switch only after several.
+    if (
+      state.tileErrorCount >= 4 &&
+      state.map &&
+      state.map.hasLayer(carto)
+    ) {
+      state.map.removeLayer(carto);
+      osm.addTo(state.map);
+      setStatus(
+        "The primary basemap could not be loaded, so the map switched to the OpenStreetMap fallback.",
+        "warning"
+      );
+    }
+  });
+
+  carto.addTo(state.map);
+  state.mapLayer = L.layerGroup().addTo(state.map);
+  state.heatLayer = null;
+
+  // Leaflet must recalculate dimensions after the responsive grid has finished.
+  const refreshMapSize = () => {
+    if (!state.map) return;
+    state.map.invalidateSize({ pan: false, debounceMoveend: true });
+  };
+
+  requestAnimationFrame(() => {
+    refreshMapSize();
+    requestAnimationFrame(refreshMapSize);
+  });
+  setTimeout(refreshMapSize, 100);
+  setTimeout(refreshMapSize, 300);
+  setTimeout(refreshMapSize, 750);
+
+  if (state.mapResizeObserver) {
+    state.mapResizeObserver.disconnect();
+  }
+  if ("ResizeObserver" in window) {
+    state.mapResizeObserver = new ResizeObserver(() => {
+      requestAnimationFrame(refreshMapSize);
+    });
+    state.mapResizeObserver.observe(container);
+  }
+}
+
+function renderMap(forecast) {
+  state.currentForecast = forecast;
+
+  const validLocations = forecast.locations.filter(location =>
+    Number.isFinite(location.latitude) &&
+    Number.isFinite(location.longitude) &&
+    location.latitude >= -90 && location.latitude <= 90 &&
+    location.longitude >= -180 && location.longitude <= 180 &&
+    clean(location.display_place) !== "" &&
+    clean(location.display_place) !== "45"
+  );
+
+  if (!validLocations.length) {
+    if (state.mapResizeObserver) {
+      state.mapResizeObserver.disconnect();
+      state.mapResizeObserver = null;
+    }
+    if (state.map) {
+      state.map.remove();
+      state.map = null;
+      state.mapLayer = null;
+      state.heatLayer = null;
+      state.baseLayer = null;
+      state.fallbackBaseLayer = null;
+      state.tileErrorCount = 0;
+    }
+    document.getElementById("mapContainer").innerHTML = `
+      <div class="map-empty">
+        <div>
+          <h3>No mappable locations yet</h3>
+          <p>
+            Add a <code>place_gazetteer</code> worksheet or record-level
+            <code>latitude</code> and <code>longitude</code> columns.
+            The rest of the forecast remains usable without them.
+          </p>
+        </div>
+      </div>`;
+    document.getElementById("legend").innerHTML = "";
+    return;
+  }
+
+  if (!state.map) initialiseMap();
+  if (!state.map) return;
+
+  state.mapLayer.clearLayers();
+  if (state.heatLayer) {
+    state.map.removeLayer(state.heatLayer);
+    state.heatLayer = null;
+  }
+
+  const maxCount = Math.max(...validLocations.map(location => location.count));
+  const bounds = validLocations.map(location => [location.latitude, location.longitude]);
+
+  if (state.mapMode === "heat") {
+    if (typeof L.heatLayer !== "function") {
+      setStatus(
+        "The heatmap extension did not load, so the map is showing dots instead.",
+        "warning"
+      );
+      state.mapMode = "dots";
+      setMapMode("dots");
+      return;
+    }
+
+    const heatPoints = validLocations.map(location => [
+      location.latitude,
+      location.longitude,
+      Math.max(0.2, location.count / maxCount)
+    ]);
+
+    state.heatLayer = L.heatLayer(heatPoints, {
+      radius: 42,
+      blur: 34,
+      maxZoom: 9,
+      minOpacity: 0.28,
+      max: 1,
+      gradient: {
+        0.10: "#2c7bb6",
+        0.25: "#00a6ca",
+        0.40: "#00ccbc",
+        0.55: "#90eb9d",
+        0.68: "#ffff8c",
+        0.80: "#f9d057",
+        0.90: "#f29e2e",
+        0.96: "#e76818",
+        1.00: "#d7191c"
+      }
+    }).addTo(state.map);
+
+    // Add small transparent hit targets so users can still inspect locations.
+    for (const location of validLocations) {
+      const hitTarget = L.circleMarker(
+        [location.latitude, location.longitude],
+        {
+          radius: Math.max(10, 7 + 12 * Math.sqrt(location.count / maxCount)),
+          stroke: false,
+          fillOpacity: 0.01,
+          interactive: true
+        }
+      );
+
+      const categoryBreakdown = location.category_counts
+        .slice(0, 4)
+        .map(item => `${escapeHtml(item.key)}: ${item.count}`)
+        .join("<br>");
+
+      hitTarget.bindPopup(`
+        <strong>${escapeHtml(location.display_place)}</strong><br>
+        ${location.count} ${plural(location.count, "image")}<br>
+        Dominant activity: ${escapeHtml(location.dominant_category)}
+        ${categoryBreakdown ? `<hr style="border:0;border-top:1px solid #ddd">${categoryBreakdown}` : ""}
+      `);
+
+      hitTarget.addTo(state.mapLayer);
+    }
+  } else {
+    for (const location of validLocations) {
+      const definition = categoryDefinition(location.dominant_category);
+      const radius = 8 + 22 * Math.sqrt(location.count / maxCount);
+
+      const marker = L.circleMarker(
+        [location.latitude, location.longitude],
+        {
+          radius,
+          fillColor: definition.colour,
+          color: "#ffffff",
+          weight: 2,
+          opacity: 1,
+          fillOpacity: .77
+        }
+      );
+
+      const categoryBreakdown = location.category_counts
+        .slice(0, 4)
+        .map(item => `${escapeHtml(item.key)}: ${item.count}`)
+        .join("<br>");
+
+      marker.bindPopup(`
+        <strong>${escapeHtml(location.display_place)}</strong><br>
+        ${location.count} ${plural(location.count, "image")}<br>
+        Dominant activity: ${escapeHtml(location.dominant_category)}
+        ${categoryBreakdown ? `<hr style="border:0;border-top:1px solid #ddd">${categoryBreakdown}` : ""}
+      `);
+
+      if (location.count >= Math.max(2, maxCount * .45)) {
+        marker.bindTooltip(
+          `${escapeHtml(location.display_place)} · ${location.count}`,
+          { permanent: true, direction: "top", className: "marker-label", offset: [0, -radius] }
+        );
+      }
+
+      marker.addTo(state.mapLayer);
+    }
+  }
+
+  const applyMapView = () => {
+    if (!state.map) return;
+    state.map.invalidateSize({ pan: false });
+    if (bounds.length === 1) {
+      state.map.setView(bounds[0], 8, { animate: false });
+    } else {
+      state.map.fitBounds(bounds, {
+        paddingTopLeft: [36, 36],
+        paddingBottomRight: [36, 36],
+        maxZoom: 8,
+        animate: false
+      });
+    }
+  };
+
+  requestAnimationFrame(() => {
+    applyMapView();
+    requestAnimationFrame(applyMapView);
+  });
+  setTimeout(applyMapView, 180);
+
+  renderMapLegend(validLocations);
+}
+
+/* ============================================================
+   RENDERING
+   ============================================================ */
+
+function renderHeadline(forecast) {
+  const generated = generateHeadline(forecast);
+
+  document.getElementById("headlineDate").textContent = formatFullDate(forecast.date);
+  document.getElementById("headline").textContent = generated.title;
+  document.getElementById("broadcastCopy").textContent = generated.copy;
+  document.getElementById("metricImages").textContent = forecast.rows.length.toLocaleString();
+  document.getElementById("metricPlaces").textContent = forecast.locations.length.toLocaleString();
+  document.getElementById("metricYears").textContent = forecast.years.length.toLocaleString();
+}
+
+function renderActivityStrip(forecast) {
+  const container = document.getElementById("activityStrip");
+
+  if (!forecast.categoryForecast.length) {
+    container.innerHTML = `
+      <article class="activity-card">
+        <div class="activity-name">No classified activity</div>
+        <div class="activity-count">No records were found for this day.</div>
+      </article>`;
+    return;
+  }
+
+  container.innerHTML = forecast.categoryForecast.map(item => {
+    const definition = categoryDefinition(item.key);
+    return `
+      <article class="activity-card" style="border-top-color:${definition.colour}">
+        <div class="activity-icon" aria-hidden="true">${definition.icon}</div>
+        <div class="activity-name">${escapeHtml(item.key)}</div>
+        <div class="activity-count">
+          ${escapeHtml(item.intensity)} · ${item.count.toLocaleString()}
+          ${plural(item.count, "image")}
+        </div>
+        <div class="meter" aria-label="${Math.round(item.share * 100)} percent of records">
+          <i style="width:${Math.max(3, item.share * 100)}%;background:${definition.colour}"></i>
+        </div>
+      </article>`;
+  }).join("");
+}
+
+function renderOutlook(startDate) {
+  const grid = document.getElementById("outlookGrid");
+  const forecasts = Array.from({ length: 7 }, (_, index) =>
+    buildDayForecast(addDays(startDate, index))
+  );
+
+  grid.innerHTML = forecasts.map((forecast, index) => {
+    const definition = categoryDefinition(forecast.dominant);
+    const active = forecast.key === state.selectedMonthDay ? " active" : "";
+    const dayName = new Intl.DateTimeFormat("en-GB", { weekday: "short" }).format(forecast.date);
+    const monthDay = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(forecast.date);
+
+    return `
+      <button class="day-card${active}" data-month-day="${forecast.key}" data-offset="${index}" type="button">
+        <div class="dow">${escapeHtml(dayName)}</div>
+        <div class="md">${escapeHtml(monthDay)}</div>
+        <div class="day-icon" aria-hidden="true">${definition.icon}</div>
+        <div class="day-theme">${escapeHtml(forecast.dominant)}</div>
+        <div class="day-count">${forecast.rows.length.toLocaleString()} ${plural(forecast.rows.length, "image")}</div>
+      </button>`;
+  }).join("");
+
+  grid.querySelectorAll(".day-card").forEach(button => {
+    button.addEventListener("click", () => {
+      state.selectedDate = addDays(startDate, Number(button.dataset.offset));
+      state.selectedMonthDay = button.dataset.monthDay;
+      renderAll();
+    });
+  });
+}
+
+function renderLocationRanking(forecast) {
+  const container = document.getElementById("locationRanking");
+  if (!forecast.locations.length) {
+    container.innerHTML = `
+      <div class="muted">
+        No geocoded locations are available. The future
+        <code>place_gazetteer</code> sheet will populate this section.
+      </div>`;
+    return;
+  }
+
+  const top = forecast.locations.slice(0, 10);
+  const maximum = top[0].count;
+
+  container.innerHTML = top.map(location => {
+    const definition = categoryDefinition(location.dominant_category);
+    return `
+      <div class="rank-row">
+        <strong>${escapeHtml(location.display_place)}</strong>
+        <span class="rank-bar">
+          <i style="width:${100 * location.count / maximum}%;background:${definition.colour}"></i>
+        </span>
+        <span>${location.count}</span>
+      </div>`;
+  }).join("");
+}
+
+function renderEvidence(forecast) {
+  const container = document.getElementById("evidence");
+
+  if (!forecast.rows.length) {
+    container.innerHTML = `<div class="muted">No evidence is available for this date.</div>`;
+    return;
+  }
+
+  const top = forecast.categoryForecast[0];
+  const ambiguousCount = forecast.rows.filter(row => row.date_ambiguous).length;
+  const browserClassified = forecast.rows.filter(row => row.category_source === "browser keyword rules").length;
+  const mappedCount = forecast.rows.filter(row =>
+    row.map_eligible &&
+    row.latitude !== null &&
+    row.longitude !== null &&
+    row.display_place &&
+    row.display_place !== "45"
+  ).length;
+
+  container.innerHTML = `
+    <div class="evidence-item">
+      <strong>${escapeHtml(top.key)}</strong><br>
+      ${top.count} of ${forecast.rows.length} records
+      (${Math.round(top.share * 100)}%) are assigned to this leading category.
+    </div>
+    <div class="evidence-item">
+      <strong>Classification provenance</strong><br>
+      ${browserClassified} records use provisional browser keyword rules;
+      ${forecast.rows.length - browserClassified} use curated or enriched categories.
+    </div>
+    <div class="evidence-item">
+      <strong>Location coverage</strong><br>
+      ${mappedCount} of ${forecast.rows.length} records have map coordinates.
+    </div>
+    <div class="evidence-item">
+      <strong>Date caution</strong><br>
+      ${ambiguousCount} records use a date marked as potentially ambiguous.
+    </div>`;
+}
+
+function recordRichness(row) {
+  return [
+    row.record_url,
+    row.image_url,
+    row.activity_description,
+    row.primary_place,
+    row.description
+  ].filter(Boolean).length;
+}
+
+function renderRecords(forecast) {
+  const container = document.getElementById("recordsList");
+  if (!forecast.rows.length) {
+    container.innerHTML = `<div class="muted">No records found for this calendar day.</div>`;
+    return;
+  }
+
+  const selected = [...forecast.rows]
+    .sort((a, b) => recordRichness(b) - recordRichness(a))
+    .slice(0, CONFIG.maxExampleRecords);
+
+  container.innerHTML = selected.map(row => {
+    const definition = categoryDefinition(row.primary_category);
+    const links = [
+      row.record_url
+        ? `<a href="${escapeHtml(row.record_url)}" target="_blank" rel="noopener">Catalogue record</a>`
+        : "",
+      row.image_url
+        ? `<a href="${escapeHtml(row.image_url)}" target="_blank" rel="noopener">Image URL</a>`
+        : ""
+    ].filter(Boolean).join("");
+
+    return `
+      <article class="record" style="border-left-color:${definition.colour}">
+        <div class="record-title">${escapeHtml(row.title || "Untitled record")}</div>
+        <div class="record-meta">
+          ${escapeHtml(row.identifier)}
+          ${row.calendar_year ? ` · ${row.calendar_year}` : ""}
+          ${row.display_place ? ` · ${escapeHtml(row.display_place)}` : ""}
+          · ${definition.icon} ${escapeHtml(row.primary_category)}
+        </div>
+        ${row.activity_description
+          ? `<div style="margin-top:7px">${escapeHtml(row.activity_description)}</div>`
+          : ""}
+        <div class="record-links">${links}</div>
+      </article>`;
+  }).join("");
+}
+
+function renderAll() {
+  if (!state.rows.length) return;
+
+  const startDateValue = document.getElementById("startDate").value;
+  if (startDateValue) {
+    const parsed = new Date(`${startDateValue}T12:00:00`);
+    if (!Number.isNaN(parsed.getTime())) {
+      const oldStartKey = monthDayKey(state.selectedDate);
+      const newStartKey = monthDayKey(parsed);
+      // When the date control changes, select its first day.
+      if (!state.selectedMonthDay || oldStartKey !== newStartKey) {
+        state.selectedDate = parsed;
+        state.selectedMonthDay = newStartKey;
+      }
+    }
+  }
+
+  const forecast = buildDayForecast(state.selectedDate);
+  renderHeadline(forecast);
+  renderMap(forecast);
+  renderActivityStrip(forecast);
+  renderOutlook(new Date(`${document.getElementById("startDate").value}T12:00:00`));
+  renderLocationRanking(forecast);
+  renderEvidence(forecast);
+  renderRecords(forecast);
+
+  // Rendering the other panels can slightly change the grid width.
+  // Re-measure the map after the complete page update.
+  if (state.map) {
+    requestAnimationFrame(() => state.map && state.map.invalidateSize({ pan: false }));
+    setTimeout(() => state.map && state.map.invalidateSize({ pan: false }), 250);
+  }
+}
+
+/* ============================================================
+   EVENTS AND INITIAL LOAD
+   ============================================================ */
+
+document.getElementById("dataFile").addEventListener("change", async event => {
+  const file = event.target.files[0];
+  if (!file) return;
+  setStatus(`Reading ${file.name}…`);
+  try {
+    const buffer = await file.arrayBuffer();
+    await readWorkbookFromArrayBuffer(buffer, file.name);
+  } catch (error) {
+    setStatus(`Could not read the selected workbook: ${error.message}`, true);
+  }
+});
+
+document.getElementById("reloadButton").addEventListener("click", loadDefaultWorkbook);
+
+document.getElementById("dotsModeButton").addEventListener("click", () => {
+  setMapMode("dots");
+});
+
+document.getElementById("heatModeButton").addEventListener("click", () => {
+  setMapMode("heat");
+});
+
+document.getElementById("startDate").addEventListener("change", event => {
+  const parsed = new Date(`${event.target.value}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return;
+  state.selectedDate = parsed;
+  state.selectedMonthDay = monthDayKey(parsed);
+  renderAll();
+});
+
+document.getElementById("todayButton").addEventListener("click", () => {
+  const today = new Date();
+  const iso = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0")
+  ].join("-");
+  document.getElementById("startDate").value = iso;
+  state.selectedDate = new Date(`${iso}T12:00:00`);
+  state.selectedMonthDay = monthDayKey(state.selectedDate);
+  renderAll();
+});
+
+window.addEventListener("load", () => {
+  const probe = document.createElement("div");
+  probe.className = "leaflet-pane";
+  probe.style.position = "absolute";
+  probe.style.visibility = "hidden";
+  document.body.appendChild(probe);
+  const leafletCssLoaded = getComputedStyle(probe).position === "absolute";
+  probe.remove();
+
+  if (!leafletCssLoaded) {
+    setStatus(
+      "Leaflet's stylesheet did not load. The map cannot position tiles correctly. Check CDN access or host leaflet.css locally.",
+      "error"
+    );
+  }
+});
+
+if (window.HubData) HubData.homeLink();
+loadDefaultWorkbook();
+</script>
+</body>
+</html>

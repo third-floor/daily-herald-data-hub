@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Herald Data Hub</title>
+<meta name="description" content="AI-generated data about the Daily Herald photographic archive, with tools to search, explore and visualise it.">
+<style>
+:root{
+  --bg:#08111f;--panel:#0d1a2b;--panel2:#101f33;--border:#294661;
+  --text:#d9ebff;--muted:#83a3c2;--muted2:#587895;--accent:#79c9ff;
+  --good:#27d3a2;--warn:#f2b84b;--purple:#c0a0ff;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  background:radial-gradient(circle at 15% 0%,rgba(41,121,255,.12),transparent 36rem),var(--bg)}
+a{color:var(--accent)}
+.wrap{max-width:1180px;margin:0 auto;padding:32px 20px 64px}
+header{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end;padding-bottom:26px;border-bottom:1px solid var(--border)}
+.eyebrow{font:11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+h1{margin:6px 0 10px;font-size:clamp(28px,4vw,42px);letter-spacing:-.02em;line-height:1.05}
+.lede{margin:0;max-width:62ch;color:var(--muted);line-height:1.6}
+.stats{display:flex;gap:10px;flex-wrap:wrap}
+.stat{min-width:110px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--panel)}
+.stat .k{font:10px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted2)}
+.stat .v{margin-top:4px;font:700 20px var(--mono)}
+h2{margin:40px 0 4px;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.section-note{margin:0 0 16px;color:var(--muted2);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.card{display:flex;flex-direction:column;gap:8px;padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--panel);
+  text-decoration:none;color:inherit;transition:border-color .15s,transform .15s}
+a.card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.card h3{margin:0;font-size:16px}
+.card p{margin:0;color:var(--muted);font-size:13px;line-height:1.55;flex:1}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{padding:2px 7px;border:1px solid var(--border);border-radius:999px;font:10px var(--mono);color:var(--muted)}
+.tag.ext{color:var(--purple);border-color:#674f8f}
+.tag.new{color:var(--good);border-color:#1f6f5a}
+.tag.in{color:var(--warn);border-color:#7a5d26}
+.dataset .count{font:700 26px var(--mono);color:var(--accent)}
+.files{margin:4px 0 0;padding:0;list-style:none;font:11px var(--mono);color:var(--muted)}
+.files li{display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-top:1px solid rgba(41,70,97,.5)}
+.files a{text-decoration:none}
+.bars{display:flex;align-items:flex-end;gap:4px;height:70px;margin-top:6px}
+.bar{flex:1;background:linear-gradient(180deg,var(--accent),#2b6c9a);border-radius:3px 3px 0 0;min-height:2px;position:relative}
+.bar span{position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);font:8px var(--mono);color:var(--muted2)}
+.bar:nth-child(even) span{display:none}
+.terms{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.terms .tag{font-size:10px}
+footer{margin-top:48px;padding-top:18px;border-top:1px solid var(--border);color:var(--muted2);font-size:12px;line-height:1.6}
+.status{font:11px var(--mono);color:var(--muted2)}
+@media(max-width:760px){header{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Daily Herald Archive · Science Museum Group</div>
+      <h1>Daily Herald Data Hub</h1>
+      <p class="lede">AI-generated transcriptions, structured metadata and visual-element annotations for the
+        Daily Herald photographic archive, together with tools to search, explore and visualise them.</p>
+    </div>
+    <div class="stats" id="stats"><div class="status">Loading data summary…</div></div>
+  </header>
+
+  <h2>Search &amp; play</h2>
+  <p class="section-note">Find photographs by their text, by what they show, or help clean the data.</p>
+  <div class="grid" id="searchTools"></div>
+
+  <h2>Datasets</h2>
+  <p class="section-note">One record per photograph, joined on the museum's <code>uid</code>. Each photograph has one or more
+    sections, depending on which processing runs it has been through.</p>
+  <div class="grid" id="datasets"></div>
+
+  <h2>Explore &amp; visualise</h2>
+  <p class="section-note">Interactive widgets. Each one loads the hub's data automatically; you can still load your own file to explore a different export.</p>
+  <div class="grid" id="widgets"></div>
+
+  <h2>Collection at a glance</h2>
+  <div class="grid">
+    <div class="card"><h3>Photographs by decade</h3><div class="bars" id="decades"></div><p style="margin-top:18px">Earliest year found in the catalogue or AI-extracted date.</p></div>
+    <div class="card"><h3>Most frequent visual elements</h3><div class="terms" id="terms"></div></div>
+  </div>
+
+  <footer>
+    <div id="generated"></div>
+    Images and catalogue records © Science Museum Group. Transcriptions and metadata are AI-generated and may contain errors.
+  </footer>
+</div>
+
+<script>
+// ── Edit these lists to add or change links ────────────────────────────────
+const SEARCH_TOOLS = [
+  {title:"Transcription search", href:"https://third-floor.github.io/dahlia-daily-transcriptions/",
+   text:"Full-text search across every transcription, with filters for hidden metadata and AI rationales.",
+   tags:[["text search"],["moving into this hub","in"]]},
+  {title:"Visual content search (WISE)", href:"https://huggingface.co/spaces/third-floor/daily-herald-photo-search",
+   text:"Describe what you're looking for in natural language and find photographs that show it.",
+   tags:[["Hugging Face","ext"],["image search"]]},
+  {title:"Daily Herald HQ", href:"https://huggingface.co/spaces/third-floor/daily-herald-hq",
+   text:"A mini-game for reviewing and cleaning the AI-generated data.",
+   tags:[["Hugging Face","ext"],["data cleaning"]]},
+];
+const WIDGETS = [
+  {file:"data_hub.html", title:"AI Transcription Dashboard", data:"all records",
+   text:"Catalogue vs AI comparison, photographers, people, entities, locations, legibility, duplicates and QA review."},
+  {file:"data_vis_explorer.html", title:"Photograph Archive Explorer", data:"structured records",
+   text:"Browse the catalogue, an entity network and subject filters across the photograph backs."},
+  {file:"linguistic_analysis.html", title:"Textual Analysis", data:"structured records",
+   text:"The language of photograph backs: common words, text-element typologies and gaps in the catalogue."},
+  {file:"on_this_day.html", title:"Date Explorer", data:"dated records",
+   text:"Browse exact historical dates, an 'On this day' calendar across all years, and collection statistics."},
+  {file:"archive_weather_forecast.html", title:"Archive Weather", data:"dated records",
+   text:"A playful TV-style forecast of the themes and places most active in the archive for the coming week."},
+  {file:"visual_elements_workbench.html", title:"Visual Elements Workbench", data:"visual elements",
+   text:"Analyse detected visual elements by decade, folder, orientation and validation level; compare groups."},
+  {file:"spatial_hover_explorer.html", title:"Spatial Explorer", data:"visual elements",
+   text:"Hover over a normalised photo frame to see which visual elements most often appear at each point."},
+];
+const SECTIONS = {
+  transcription:{title:"Transcriptions", text:"Text on the back of every print. For most photographs it comes from the v6 structured text elements; for the rest, from the earlier transcription files."},
+  metadata_v6:{title:"Structured metadata (v6)", text:"Text elements, photographers, people and places (depicted and mentioned), dates, rights and editorial details, with confidence scores and rationales."},
+  visual_elements:{title:"Visual elements", text:"Objects detected on the front of each print, with bounding boxes, confidence scores and rationales."},
+};
+// ──────────────────────────────────────────────────────────────────────────
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = n => Number(n || 0).toLocaleString("en-GB");
+const mb = b => (b / 1e6).toFixed(1) + " MB";
+const tagHtml = tags => `<div class="tags">${tags.map(([t, c]) => `<span class="tag ${c || ""}">${esc(t)}</span>`).join("")}</div>`;
+
+$("searchTools").innerHTML = SEARCH_TOOLS.map(t => `
+  <a class="card" href="${esc(t.href)}" target="_blank" rel="noopener">
+    <h3>${esc(t.title)} ↗</h3><p>${esc(t.text)}</p>${tagHtml(t.tags)}</a>`).join("");
+
+$("widgets").innerHTML = WIDGETS.map(w => `
+  <a class="card" href="tools/${esc(w.file)}">
+    <h3>${esc(w.title)}</h3><p>${esc(w.text)}</p>${tagHtml([[`${w.data}`]])}</a>`).join("");
+
+// GitHub repo URL, worked out from the Pages address (owner.github.io/repo/)
+function repoUrl() {
+  const m = location.hostname.match(/^([^.]+)\.github\.io$/);
+  const repo = location.pathname.split("/").filter(Boolean)[0];
+  return m && repo ? `https://github.com/${m[1]}/${repo}` : null;
+}
+
+fetch("data/manifest.json").then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(m => {
+  const s = m.sections || {};
+  $("stats").innerHTML = [
+    ["Photographs", m.photographs], ["Transcriptions", s.transcription],
+    ["Structured", s.metadata_v6], ["Visual", s.visual_elements],
+  ].map(([k, v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${fmt(v)}</div></div>`).join("");
+
+  const recFiles = (m.files.records || []);
+  const repo = repoUrl();
+  $("datasets").innerHTML = Object.entries(SECTIONS).map(([key, d]) => `
+    <div class="card dataset">
+      <h3>${esc(d.title)}</h3>
+      <div class="count">${fmt(s[key])}</div>
+      <p>${esc(d.text)}</p>
+    </div>`).join("") + `
+    <div class="card dataset">
+      <h3>Download</h3>
+      <p>Combined records (all sections), split into files of up to 20 MB. ${repo ? `The original source files are in the <a href="${repo}/tree/main/data/source">repository</a>.` : ""}</p>
+      <ul class="files">${recFiles.map(f => `<li><a href="${esc(f.path)}" download>${esc(f.file)}</a><span>${fmt(f.records)} · ${mb(f.bytes)}</span></li>`).join("")}</ul>
+    </div>`;
+
+  const dec = Object.entries(m.decades || {});
+  const max = Math.max(1, ...dec.map(([, v]) => v));
+  $("decades").innerHTML = dec.map(([d, v]) => `<div class="bar" style="height:${Math.max(2, v / max * 100)}%" title="${d}s: ${fmt(v)}"><span>${d}</span></div>`).join("");
+  const terms = Object.entries(m.top_visual_terms || {}).slice(0, 24);
+  $("terms").innerHTML = terms.length ? terms.map(([t, n]) => `<span class="tag" title="${fmt(n)} photographs">${esc(t.replace(/_/g, " "))} · ${fmt(n)}</span>`).join("")
+    : `<span class="status">No visual-element data yet.</span>`;
+  $("generated").textContent = `Data built ${new Date(m.generated_at).toLocaleString("en-GB")}.`;
+}).catch(() => {
+  $("stats").innerHTML = `<div class="status">Data summary unavailable (data/manifest.json not found).</div>`;
+  $("datasets").innerHTML = `<div class="card"><p>Run <code>scripts/build.py</code> to generate the data files.</p></div>`;
+});
+</script>
+</body>
+</html>

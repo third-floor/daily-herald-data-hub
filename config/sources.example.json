@@ -1,0 +1,11 @@
+{
+  "max_mb": 20,
+  "sources": [
+    {"name": "transcriptions_v1", "format": "json",
+     "inputs": ["/content/drive/MyDrive/Daily Herald/transcriptions/data_[1-4].json"]},
+    {"name": "metadata_v6", "format": "json",
+     "inputs": ["/content/drive/MyDrive/Daily Herald/metadata_v6/*.json"]},
+    {"name": "pipeline_xlsx", "format": "xlsx",
+     "inputs": ["/content/drive/MyDrive/Daily Herald/visual_elements/*.xlsx"]}
+  ]
+}

@@ -1,0 +1,54 @@
+# Builds the website data from data/source and deploys the hub to GitHub Pages.
+# The generated files only exist inside this workflow run, so they never
+# end up in the git history.
+name: Build and deploy hub
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # "Run workflow" button in the Actions tab
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build site data (data/source → _site/data)
+        run: python scripts/build.py --source data/source --out _site --site site
+
+      - name: Check no file exceeds 20 MB
+        run: |
+          big=$(find _site -type f -size +20000000c)
+          if [ -n "$big" ]; then echo "Files over 20 MB:"; echo "$big"; exit 1; fi
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
