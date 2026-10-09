@@ -1369,28 +1369,19 @@ function readRecordRows(rawRows, sourceLabel) {
 
 // Data Hub: dated records, plus an optional place gazetteer and category map
 // (add them as "lookup" sources named place_gazetteer / category_map).
-async function loadFromHub() {
-  setStatus("Loading dated records from the Data Hub…");
-  const [rows, gazetteer, categories] = await Promise.all([
-    HubData.loadView("dates", { onProgress: p => setStatus(
-      `Loading dated records from the Data Hub… ${(p.bytes / 1e6).toFixed(1)} / ${(p.total / 1e6).toFixed(1)} MB`) }),
-    HubData.loadView("place_gazetteer", { optional: true }),
-    HubData.loadView("category_map", { optional: true })
-  ]);
-  state.workbook = null;
-  loadGazetteer(null, gazetteer);
-  loadCategoryRules(null, categories);
-  readRecordRows(rows, "the Daily Herald Data Hub");
+function loadFromHub() {
+  return HubData.load("dates", (rows, info) => {
+    state.workbook = null;
+    loadGazetteer(null, info.extra.place_gazetteer);
+    loadCategoryRules(null, info.extra.category_map);
+    readRecordRows(rows, "the Daily Herald Data Hub");
+  }, { label: "dated records", optionalExtra: ["place_gazetteer", "category_map"], quietFail: true });
 }
 
 async function loadDefaultWorkbook() {
   if (window.HubData && window.location.protocol !== "file:") {
-    try {
-      await loadFromHub();
-      return;
-    } catch (error) {
-      console.warn("Data Hub load failed, falling back to the workbook:", error);
-    }
+    if (await loadFromHub()) return;
+    console.warn("Data Hub load failed, falling back to the workbook.");
   }
   if (window.location.protocol === "file:") {
     setStatus(
@@ -2163,7 +2154,6 @@ window.addEventListener("load", () => {
   }
 });
 
-if (window.HubData) HubData.homeLink();
 loadDefaultWorkbook();
 </script>
 </body>

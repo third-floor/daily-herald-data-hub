@@ -62,7 +62,7 @@ Then open the repo's **Actions** tab. When *Build and deploy hub* turns green, t
 
 ## How the widgets get their data
 
-Every tool in `site/tools/` includes `site/assets/hub-data.js`. When it opens, it loads its data from the hub automatically: it shows a progress banner, then hands the rows to the widget's existing loading code. Nothing needs to be uploaded. Each tool still has its own "load a file" option for exploring a different export, and that is also what it falls back to when opened straight from disk.
+Every tool in `site/tools/` includes `site/assets/hub-data.js`. When it opens, a full-screen loading screen with a progress bar covers the page while the hub's data downloads; the rows are then handed to the widget's existing loading code and the screen fades away. Nothing needs to be uploaded. Each tool still has its own "load a file" option for exploring a different export. That option appears only if the hub data can't be loaded, or when the page is opened straight from disk.
 
 `build.py` writes each view in exactly the shape the widgets were originally written for:
 
@@ -90,7 +90,24 @@ The gazetteer's `raw_place` values should match the standardised place names, e.
 When you get an updated `dh-data-hub.zip`, put it on Drive in place of the old one. Use the latest notebook, copy your settings into cell 1, keep `UPDATE_CODE_FROM_ZIP = True`, and run all the cells. The code files are replaced; `data/source/` is never touched.
 
 ## Updating the data later
-Add or replace files on Drive, update `SOURCES` if needed, and re-run the notebook. Unchanged chunks produce no git changes.
+
+### Replacing source files with newer versions
+1. **Put the new files on Drive.** Either replace the old file with the same name, or add the new file next to it.
+2. **Point `SOURCES` at the files you want** (cell 1 of the notebook). Inside one source, if a photo (`uid`) appears in more than one file, **the later file in the list wins**. So list files oldest first, or remove an old file from the list if a new one fully replaces it.
+3. **Set `UPDATE_CODE_FROM_ZIP = False`**, unless you were also sent new code. Then run all cells.
+4. **Check the report from cell 4 before pushing.** For each source it prints:
+   * `compared with what was there before: 20,136 → 20,500 records (+364 new, −0 no longer present)`. Investigate a large "no longer present" number: it usually means a file is missing from `SOURCES`.
+   * `NEW fields: [...]` lists fields the newer export adds.
+   * `fields no longer present: [...]` lists fields that were there before but are missing now.
+5. **Optional: check the site in cell 5's preview, then push in cell 6.** GitHub rebuilds the site in a couple of minutes.
+
+Unchanged chunks produce no git changes, so re-running the notebook with the same files commits nothing.
+
+### What happens to new information
+* **Nothing is lost.** `data/source/` keeps every field of the new files. In the built records, fields that `build.py` doesn't know yet are kept under `other_fields` in the matching section (`metadata_v6.other_fields`, `transcription_v1.other_fields`). For the spreadsheet, they go under the section's `processing`. All of these become searchable through the "additional metadata" option.
+* **Widgets only use fields they were written for.** To show a new field in a widget, the search cards or the hub page, `build.py` (and maybe the widget) needs a small change. Use the `NEW fields` line from the report to ask for it.
+* **A different kind of export** (for example a new "v7" layout, or a new pipeline run) is best added as a new source with its own name. If its records aren't recognised, `build.py` prints `records with unknown schema`, which is the sign that it needs mapping.
+* **Removing data** works the same way: take the file out of `SOURCES` and re-run. Its chunks are rewritten without it. Older versions stay in the git history.
 
 To rebuild the site without new data (for example after editing `site/`), use **Actions → Build and deploy hub → Run workflow**.
 

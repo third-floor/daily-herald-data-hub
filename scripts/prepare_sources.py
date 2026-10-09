@@ -252,14 +252,27 @@ def prepare(sources: list[dict], out_dir: str | Path = "data/source",
             file_infos.append(info)
             print(f"  · {info['file']}: {n:,} records")
 
-        # pass 2: write chunks (later duplicates replace earlier ones)
+        # what is already committed for this source, to report what changed
         folder = out_dir / name
+        old_uids, old_fields = set(), set()
+        try:
+            from chunking import read_parts
+            for old in read_parts(folder):
+                old_uids.add(record_uid(old))
+                old_fields.update(old.keys())
+        except (ValueError, OSError):
+            pass
+
+        # pass 2: write chunks (later duplicates replace earlier ones)
         clear_parts(folder)
         writer = ChunkWriter(folder, max_bytes)
         written = 0
+        new_uids, new_fields = set(), set()
         for i, (uid, rec) in enumerate(loaded):
             if last_index[uid] != i:
                 continue
+            new_uids.add(uid)
+            new_fields.update(rec.keys())
             writer.add(rec, uid)
             written += 1
             uid_sources.setdefault(uid, set()).add(name)
@@ -286,6 +299,14 @@ def prepare(sources: list[dict], out_dir: str | Path = "data/source",
         biggest = max(p["bytes"] for p in parts) / 1e6
         print(f"  ✓ {written:,} records → {len(parts)} chunk(s), largest {biggest:.1f} MB"
               f"{f'; {len(dup_rows):,} duplicate uids replaced (see reports/)' if dup_rows else ''}")
+        if old_uids:
+            added, removed = len(new_uids - old_uids), len(old_uids - new_uids)
+            print(f"  · compared with what was there before: {len(old_uids):,} → {len(new_uids):,} records"
+                  f" (+{added:,} new, −{removed:,} no longer present)")
+            if new_fields - old_fields:
+                print(f"  · NEW fields: {sorted(new_fields - old_fields)}")
+            if old_fields - new_fields:
+                print(f"  · fields no longer present: {sorted(old_fields - new_fields)}")
         if dropped_fields:
             print(f"  · left out fields: {dict(dropped_fields)}")
         if writer.oversized:

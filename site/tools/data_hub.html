@@ -27,12 +27,17 @@ input,select,textarea{border:1px solid var(--border);border-radius:6px;padding:8
 canvas{cursor:pointer}.hidden{display:none}footer{text-align:center;color:var(--muted);padding:30px;font-size:11px}@media(max-width:800px){.panel-grid{grid-template-columns:1fr}.drawer-controls{flex-direction:column}.active-filter-banner{flex-direction:column;align-items:flex-start}}
 </style>
 <script src="../assets/hub-data.js"></script>
+<style>
+.upload-panel.hub-collapsed{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.upload-panel.hub-collapsed > :not(#status):not(.hub-own-files){display:none}
+.upload-panel.hub-collapsed #status{margin:0}
+</style>
 </head>
 <body>
 <header><h1>Daily Herald Archive — AI Transcription Dashboard</h1><p>Catalogue metadata, transcription, photographer/person standardisation, entity analysis, QA and human review</p></header>
 <nav class="dashboard-nav"><a href="#overview">Overview</a><a href="#dates">Dates</a><a href="#gaps">Catalogue ↔ AI</a><a href="#photographers">Photographers</a><a href="#people">People</a><a href="#entities">Entities</a><a href="#locations">Locations</a><a href="#text">Text</a><a href="#legibility">Legibility</a><a href="#duplicates">Duplicates</a><a href="#quality">QA</a><a href="#review">Review</a><a href="#records">Records</a></nav>
 <main>
-<div class="upload-panel"><h2>Load Daily Herald JSON files</h2><p>The dashboard loads all records from the Data Hub automatically. You can also select your own original JSON files here. Records sharing the same UID are deduplicated for normal archive-level statistics. All raw processing instances are retained for duplicate/model-reproducibility analysis.</p><input id="jsonFiles" type="file" multiple accept=".json,application/json"><div class="upload-actions"><button onclick="loadFiles()">Build dashboard</button><button class="secondary" onclick="resetDashboard()">Reset</button></div><div id="status" class="status">No files loaded.</div></div>
+<div class="upload-panel"><h2>Load Daily Herald JSON files</h2><p>The dashboard loads all records from the Data Hub automatically. You can also select your own original JSON files here. Records sharing the same UID are deduplicated for normal archive-level statistics. All raw processing instances are retained for duplicate/model-reproducibility analysis.</p><input id="jsonFiles" type="file" multiple accept=".json,application/json"><div class="upload-actions"><button onclick="loadFiles()">Build dashboard</button><button class="secondary" onclick="resetDashboard()">Reset</button></div><div id="status" class="status">Loading…</div></div>
 <div id="dashboard" class="hidden">
 <div class="global-filter-panel"><h3>Global filters</h3><div class="global-filter-grid">
 <div><label>Schema</label><select id="globalSchemaFilter" onchange="applyGlobalFilters()"><option value="">All schemas</option><option value="legacy">Legacy</option><option value="structured">Structured</option></select></div>
@@ -259,6 +264,16 @@ HubData.autoload("compact_v6", (rows, info) => {
   add(info.extra.v1);
   add(rows);
   finishLoad();
+  // Shrink the upload panel to one line; it can be reopened to load own files.
+  const panel = document.querySelector(".upload-panel");
+  if (panel && !panel.querySelector(".hub-own-files")) {
+    panel.classList.add("hub-collapsed");
+    const btn = document.createElement("button");
+    btn.className = "secondary hub-own-files";
+    btn.textContent = "Load your own JSON files instead";
+    btn.onclick = () => { panel.classList.remove("hub-collapsed"); btn.remove(); };
+    panel.appendChild(btn);
+  }
 }, { label: "transcription and metadata records", extra: ["v1"] });
 </script>
 </body>

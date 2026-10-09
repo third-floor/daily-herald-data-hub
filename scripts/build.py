@@ -158,9 +158,24 @@ def remap_list(items, keymap):
     return out
 
 
+V6_KNOWN = {"id", "uid", "title", "img", "imgs", "url", "date", "date_info", "activity", "te",
+            "photographers", "depicted", "mentioned", "places_dep", "places_men", "subjects",
+            "rights", "editorial", "meta", "_src"}
+V1_KNOWN = {"uid", "identifier", "title", "description", "date", "maker", "thumbnail_medium_link",
+            "thumbnail_large_link", "image_links", "Transcribed_Text", "text_length",
+            "Spatial_Prompt", "Spatial_Regions", "_src"}
+
+
+def other_fields(r: dict, known: set) -> dict:
+    """Fields a newer export added that this script doesn't know yet — kept, not lost."""
+    return {k: v for k, v in r.items()
+            if k not in known and not k.startswith("output - ") and not empty(v)}
+
+
 def metadata_from_compact(r: dict) -> dict:
     activity = r.get("activity")
     return compact({
+        "other_fields": other_fields(r, V6_KNOWN),
         "from_source": "v6_compact_json",
         "text_elements": remap_list(r.get("te"), TEXT_EL),
         "photographers": remap_list(r.get("photographers"), PERSON),
@@ -292,6 +307,7 @@ def load_sources(src_dir: Path):
                     "transcribed_text": r.get("Transcribed_Text"),
                     "spatial_prompt": r.get("Spatial_Prompt"),
                     "spatial_regions": r.get("Spatial_Regions"),
+                    "other_fields": other_fields(r, V1_KNOWN),
                 })
                 for k in ("identifier", "title", "description", "date", "maker",
                           "image_links", "thumbnail_medium_link", "thumbnail_large_link"):

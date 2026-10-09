@@ -914,24 +914,17 @@ document.getElementById("expectedFilename").textContent = CONFIG.excelFilename;
 
 async function attemptAutoLoad(){
   if(window.HubData){
-    HubData.homeLink();
-    if(location.protocol !== "file:"){
-      const say = t => { loaderStatus.innerHTML = '<span class="dot"></span> ' + t; };
-      try{
-        say("Loading dated records from the Data Hub…");
-        const rows = await HubData.loadView("dates", {onProgress: function(p){
-          say("Loading dated records from the Data Hub… " + (p.bytes/1e6).toFixed(1) + " / " + (p.total/1e6).toFixed(1) + " MB");
-        }});
-        say("Preparing " + rows.length.toLocaleString() + " records…");
-        await new Promise(function(r){ setTimeout(r, 20); });
-        processRows(rows, "Daily Herald Data Hub", "dated records");
-        return;
-      }catch(err){
-        console.warn("Data Hub load failed, falling back to the spreadsheet:", err);
-        say("Data Hub not available — trying the spreadsheet…");
-      }
-    }
+    // Loading screen while the Data Hub's dated records arrive; if that fails,
+    // fall back to the spreadsheet next to this page, then to the file picker.
+    const ok = await HubData.load("dates", function(rows){
+      processRows(rows, "Daily Herald Data Hub", "dated records");
+    }, {label: "dated records", quietFail: true});
+    if(ok) return;
   }
+  return attemptSpreadsheetLoad();
+}
+
+async function attemptSpreadsheetLoad(){
   try{
     const res = await fetch(CONFIG.excelFilename, {cache:"no-store"});
     if(!res.ok) throw new Error("HTTP " + res.status);
